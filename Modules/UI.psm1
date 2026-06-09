@@ -73,17 +73,19 @@ function Show-Victory {
 function Show-Title {
     Clear-Host
     Write-Host ""
-    Write-Host "==================================================" -ForegroundColor DarkCyan
-    Write-Host "         ____  ____  ____  ____  ____            " -ForegroundColor Cyan
-    Write-Host "        / ___||  __||  __||  __||  __|           " -ForegroundColor Cyan
-    Write-Host "        \___ \| |__ | |__ | |__ | |__            " -ForegroundColor Cyan
-    Write-Host "         ___) ||  __||  __||  __||  __|          " -ForegroundColor Cyan
-    Write-Host "        |____/ |____||____||____||____|           " -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "           CYBER SECURITY ESCAPE ROOM            " -ForegroundColor Cyan
-    Write-Host "==================================================" -ForegroundColor DarkCyan
-    Write-Host "     Samla nycklarna. Lås upp rummen. Fly.       " -ForegroundColor Gray
-    Write-Host "==================================================" -ForegroundColor DarkCyan
+    Write-Host "==================================================" -ForegroundColor DarkGreen
+    Write-Host "                                                  " -ForegroundColor Green
+    Write-Host "     ░█████╗░██╗░░░██╗██████╗░███████╗██████╗   " -ForegroundColor Green
+    Write-Host "     ██╔══██╗╚██╗░██╔╝██╔══██╗██╔════╝██╔══██╗  " -ForegroundColor Green
+    Write-Host "     ██║░░╚═╝░╚████╔╝░██████╦╝█████╗░░██████╔╝  " -ForegroundColor Green
+    Write-Host "     ██║░░██╗░░╚██╔╝░░██╔══██╗██╔══╝░░██╔══██╗  " -ForegroundColor Green
+    Write-Host "     ╚█████╔╝░░░██║░░░██████╦╝███████╗██║░░██║  " -ForegroundColor Green
+    Write-Host "     ░╚════╝░░░░╚═╝░░░╚═════╝░╚══════╝╚═╝░░╚═╝  " -ForegroundColor Green
+    Write-Host "                                                  " -ForegroundColor Green
+    Write-Host "           CYBER SECURITY ESCAPE ROOM            " -ForegroundColor Green
+    Write-Host "==================================================" -ForegroundColor DarkGreen
+    Write-Host "     Samla nycklarna. Lås upp rummen. Fly.       " -ForegroundColor DarkGreen
+    Write-Host "==================================================" -ForegroundColor DarkGreen
     Write-Host ""
 }
 
@@ -93,14 +95,13 @@ function Show-Menu {
         [string[]]$Options
     )
 
-    Write-Host "+---------------- HUVUDMENY ----------------+" -ForegroundColor DarkCyan
+    Write-Host "+---------------- HUVUDMENY ----------------+" -ForegroundColor DarkGreen
     
-    # Loopar igenom alla alternativ och skriver ut dem med nummer
     for ($i = 0; $i -lt $Options.Length; $i++) {
-        Write-Host "|  [$($i + 1)] $($Options[$i])" -ForegroundColor White
+        Write-Host "|  [$($i + 1)] $($Options[$i])" -ForegroundColor Green
     }
     
-    Write-Host "+-------------------------------------------+" -ForegroundColor DarkCyan
+    Write-Host "+-------------------------------------------+" -ForegroundColor DarkGreen
     Write-Host ""
 }
 
