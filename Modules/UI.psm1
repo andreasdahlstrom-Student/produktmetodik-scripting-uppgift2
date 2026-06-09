@@ -1,4 +1,4 @@
-function Show-HPBar {
+﻿function Show-HPBar {
     param(
         [Parameter(Mandatory)]
         [int]$CurrentHP,
@@ -94,17 +94,14 @@ function Show-Menu {
         [Parameter(Mandatory)]
         [string[]]$Options
     )
-
     Write-Host "+---------------- HUVUDMENY ----------------+" -ForegroundColor DarkGreen
-    
     for ($i = 0; $i -lt $Options.Length; $i++) {
-        Write-Host "|  [$($i + 1)] $($Options[$i])" -ForegroundColor Green
+        $num = $i + 1
+        Write-Host "|  [$num] $($Options[$i])" -ForegroundColor Green
     }
-    
     Write-Host "+-------------------------------------------+" -ForegroundColor DarkGreen
     Write-Host ""
 }
-
 
 Export-ModuleMember -Function Show-HPBar, Show-StatusBar, `
     Show-GameOver, Show-Victory, Show-Title, Show-Menu
