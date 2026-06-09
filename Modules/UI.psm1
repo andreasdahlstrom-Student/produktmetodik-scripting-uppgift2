@@ -70,4 +70,40 @@ function Show-Victory {
     Write-Host ""
 }
 
-Export-ModuleMember -Function Show-HPBar, Show-StatusBar, Show-GameOver, Show-Victory
+function Show-Title {
+    Clear-Host
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor DarkCyan
+    Write-Host "         ____  ____  ____  ____  ____            " -ForegroundColor Cyan
+    Write-Host "        / ___||  __||  __||  __||  __|           " -ForegroundColor Cyan
+    Write-Host "        \___ \| |__ | |__ | |__ | |__            " -ForegroundColor Cyan
+    Write-Host "         ___) ||  __||  __||  __||  __|          " -ForegroundColor Cyan
+    Write-Host "        |____/ |____||____||____||____|           " -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "           CYBER SECURITY ESCAPE ROOM            " -ForegroundColor Cyan
+    Write-Host "==================================================" -ForegroundColor DarkCyan
+    Write-Host "     Samla nycklarna. Lås upp rummen. Fly.       " -ForegroundColor Gray
+    Write-Host "==================================================" -ForegroundColor DarkCyan
+    Write-Host ""
+}
+
+function Show-Menu {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$Options
+    )
+
+    Write-Host "+---------------- HUVUDMENY ----------------+" -ForegroundColor DarkCyan
+    
+    # Loopar igenom alla alternativ och skriver ut dem med nummer
+    for ($i = 0; $i -lt $Options.Length; $i++) {
+        Write-Host "|  [$($i + 1)] $($Options[$i])" -ForegroundColor White
+    }
+    
+    Write-Host "+-------------------------------------------+" -ForegroundColor DarkCyan
+    Write-Host ""
+}
+
+
+Export-ModuleMember -Function Show-HPBar, Show-StatusBar, `
+    Show-GameOver, Show-Victory, Show-Title, Show-Menu
