@@ -213,6 +213,38 @@ function Show-FailureMessage {
     Read-Host "  Tryck Enter for att forsoka igen"
 }
 
+# ─────────────────────────────────────────
+# NEDRÄKNING
+# Visar en dramatisk nedräkning innan rummet börjar
+# ─────────────────────────────────────────
+function Show-Countdown {
+    param(
+        [int]$Seconds = 3,          # Antal sekunder att räkna ner
+        [string]$Message = "INTRANG DETEKTERAT!"  # Meddelande efter nedräkning
+    )
+
+    try {
+        Write-Host ""
+        Write-Host "  Systemet initieras..." -ForegroundColor DarkGreen
+        Write-Host ""
+
+        # Räknar ner från $Seconds till 1
+        for ($i = $Seconds; $i -gt 0; $i--) {
+            Write-Host "         $i..." -ForegroundColor Green
+            # Väntar 1 sekund mellan varje siffra
+            Start-Sleep -Seconds 1
+        }
+
+        Write-Host ""
+        Write-Host "  $Message" -ForegroundColor Green
+        Write-Host ""
+        Start-Sleep -Seconds 1
+
+    } catch {
+        # Om nedräkningen misslyckas av någon anledning fortsätter spelet ändå
+        Write-Host "  Startar rummet..." -ForegroundColor DarkGreen
+    }
+}
 
 # ─────────────────────────────────────────
 # EXPORTERAR ALLA FUNKTIONER
@@ -220,4 +252,5 @@ function Show-FailureMessage {
 # ─────────────────────────────────────────
 Export-ModuleMember -Function Show-HPBar, Show-StatusBar, `
     Show-GameOver, Show-Victory, Show-Title, Show-Menu, `
-    Show-RoomIntro, Show-SuccessMessage, Show-FailureMessage
+    Show-RoomIntro, Show-SuccessMessage, Show-FailureMessage, `
+    Show-Question, Pause-Game, Show-Countdown
