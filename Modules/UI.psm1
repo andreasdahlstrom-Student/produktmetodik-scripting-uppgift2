@@ -1,0 +1,73 @@
+function Show-HPBar {
+    param(
+        [Parameter(Mandatory)]
+        [int]$CurrentHP,
+        [int]$MaxHP = 100
+    )
+
+    $barLength = 20
+    $filled = [math]::Round(($CurrentHP / $MaxHP) * $barLength)
+    $empty = $barLength - $filled
+
+    $bar = ("█" * $filled) + ("░" * $empty)
+
+    # Färgen ändras beroende på hur mycket HP som återstår
+    if ($CurrentHP -gt 60) {
+        $color = "Green"
+    } elseif ($CurrentHP -gt 30) {
+        $color = "Yellow"
+    } else {
+        $color = "Red"
+    }
+
+    Write-Host "| HP: [$bar] $CurrentHP/$MaxHP" -ForegroundColor $color
+}
+
+function Show-StatusBar {
+    param(
+        [Parameter(Mandatory)]
+        [int]$CurrentHP,
+        [int]$MaxHP = 100,
+        [Parameter(Mandatory)]
+        [int]$Score,
+        [int]$CompletedRooms = 0,
+        [int]$TotalRooms = 3
+    )
+
+    Write-Host "+---------------- STATUS -------------------+" -ForegroundColor DarkCyan
+    Show-HPBar -CurrentHP $CurrentHP -MaxHP $MaxHP
+    Write-Host "| Poäng: $Score" -ForegroundColor Magenta
+    Write-Host "| Rum avklarade: $CompletedRooms av $TotalRooms" -ForegroundColor Magenta
+    Write-Host "+-------------------------------------------+" -ForegroundColor DarkCyan
+    Write-Host ""
+}
+
+function Show-GameOver {
+    Clear-Host
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor DarkRed
+    Write-Host "                  GAME OVER                      " -ForegroundColor Red
+    Write-Host "==================================================" -ForegroundColor DarkRed
+    Write-Host "  Du tog för mycket skada och systemet stängde." -ForegroundColor Gray
+    Write-Host "  Starta om och försök igen..." -ForegroundColor Gray
+    Write-Host "==================================================" -ForegroundColor DarkRed
+    Write-Host ""
+}
+
+function Show-Victory {
+    param(
+        [Parameter(Mandatory)]
+        [int]$FinalScore
+    )
+    Clear-Host
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor DarkGreen
+    Write-Host "              DU KLARADE DET!                    " -ForegroundColor Green
+    Write-Host "==================================================" -ForegroundColor DarkGreen
+    Write-Host "  Alla säkerhetsrum är upplåsta." -ForegroundColor Gray
+    Write-Host "  Slutpoäng: $FinalScore" -ForegroundColor Cyan
+    Write-Host "==================================================" -ForegroundColor DarkGreen
+    Write-Host ""
+}
+
+Export-ModuleMember -Function Show-HPBar, Show-StatusBar, Show-GameOver, Show-Victory
