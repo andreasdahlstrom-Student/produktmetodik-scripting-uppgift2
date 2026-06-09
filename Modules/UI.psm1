@@ -103,5 +103,31 @@ function Show-Menu {
     Write-Host ""
 }
 
+function Show-RoomIntro {
+    param(
+        [Parameter(Mandatory)][string]$RoomName,
+        [Parameter(Mandatory)][string]$Description,
+        [Parameter(Mandatory)][int]$RoomNumber,
+        [int]$TotalRooms = 3,
+        [int]$Points = 100
+    )
+
+    Clear-Host
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor DarkGreen
+    Write-Host "  [RUM $RoomNumber AV $TotalRooms]" -ForegroundColor Green
+    Write-Host "==================================================" -ForegroundColor DarkGreen
+    Write-Host ""
+    Write-Host "  $RoomName" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  $Description" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Sakerhetsnycklar att vinna: $Points p" -ForegroundColor DarkGreen
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor DarkGreen
+    Write-Host ""
+    Read-Host "  Tryck Enter for att borja"
+}
+
 Export-ModuleMember -Function Show-HPBar, Show-StatusBar, `
-    Show-GameOver, Show-Victory, Show-Title, Show-Menu
+    Show-GameOver, Show-Victory, Show-Title, Show-Menu, Show-RoomIntro
