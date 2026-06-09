@@ -542,6 +542,7 @@ function Write-LoadConfirmation {
     }
 }
 
+
 # -----------------------------------------------------------------------------
 # EXPORTERA FUNKTIONER
 # Gör alla funktioner tillgängliga när modulen importeras med Import-Module
