@@ -2,6 +2,11 @@
 # Här finns spelets säkerhetsutmaningar.
 # Varje funktion returnerar ett objekt med Success, Points och Feedback.
 
+# ==========================================
+# Hjälpfunktioner
+# ==========================================
+
+# Skapar ett standardiserat resultatobjekt
 function New-ChallengeResult {
     param(
         [Parameter(Mandatory)]
@@ -21,6 +26,7 @@ function New-ChallengeResult {
     }
 }
 
+# Läser in ett giltigt val från användaren
 function Read-ChallengeChoice {
     param([string]$Prompt)
 
@@ -35,6 +41,7 @@ function Read-ChallengeChoice {
     }
 }
 
+# Skriver ut en visuell avdelare i terminalen
 function Write-Separator {
     Write-Host ""
     Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
@@ -47,7 +54,7 @@ function Invoke-PhishingChallenge {
     Write-Host "  TERMINALUTMANING: INKORGEN   " -ForegroundColor Cyan
     Write-Host "===============================" -ForegroundColor DarkCyan
     Write-Host ""
-
+# Visa scenario för användaren
     Write-Host "SCENARIO:" -ForegroundColor Yellow
     Write-Separator
 
@@ -62,10 +69,10 @@ function Invoke-PhishingChallenge {
     Write-Host "2. Kontrollera avsändaren och gå själv till skolans riktiga inloggningssida"
     Write-Host "3. Svara på mejlet med ditt användarnamn och lösenord."
     Write-Host ""
-
+# Läs in användarens val
     $choice = Read-ChallengeChoice -Prompt "Välj säker åtgärd"
-
-    $result = switch ($choice) {
+# Utvärdera svaret
+$result = switch ($choice) {
 
         1 {
             $feedback = "FEL: Klicka aldrig på misstänkta länkar."
@@ -89,7 +96,7 @@ function Invoke-PhishingChallenge {
     Write-Host ""
     Read-Host "Tryck Enter för att fortsätta"
 
-    return $result
+return $result
 }
 function Invoke-PasswordChallenge {
 
@@ -116,7 +123,7 @@ function Invoke-PasswordChallenge {
 
     $choice = Read-ChallengeChoice -Prompt "Välj lösenord"
 
-   $result = switch ($choice) {
+$result = switch ($choice) {
 
     1 {
         $feedback = "FEL: Detta lösenord är för svagt och lätt att gissa."
@@ -142,7 +149,7 @@ Read-Host "Tryck Enter för att fortsätta"
 
 return $result
 }
-function Invoke-MfaChallenge {
+function Invoke-MFAChallenge {
 
     Write-Host ""
     Write-Host "===============================" -ForegroundColor DarkCyan
@@ -153,7 +160,7 @@ function Invoke-MfaChallenge {
     Write-Host "SCENARIO:" -ForegroundColor Yellow
     Write-Separator
 
-    Write-Host "Dörren skickar en MFA-notis. Problemet är att du inte försöker logga in.." -ForegroundColor Gray
+    Write-Host "Dörren skickar en MFA-notis. Problemet är att du inte försöker logga in." -ForegroundColor Gray
     Write-Host "Om du godkänner fel notis kan någon annan komma in." -ForegroundColor Gray
     Write-Host ""
 
@@ -194,7 +201,7 @@ Read-Host "Tryck Enter för att fortsätta"
 return $result
 }
 
-function Invoke-UsbChallenge {
+function Invoke-USBChallenge {
 
     Write-Host ""
     Write-Host "===============================" -ForegroundColor DarkCyan
@@ -219,7 +226,7 @@ function Invoke-UsbChallenge {
 
     $choice = Read-ChallengeChoice -Prompt "Välj säker åtgärd"
 
-    $result = switch ($choice) {
+$result = switch ($choice) {
     1 {
         $feedback = "FEL: Okända USB-enheter kan innehålla skadlig kod."
         Write-Host $feedback -ForegroundColor Red
@@ -297,4 +304,4 @@ Read-Host "Tryck Enter för att fortsätta"
 return $result
 }
 
-Export-ModuleMember -Function Invoke-PhishingChallenge, Invoke-PasswordChallenge, Invoke-MfaChallenge, Invoke-UsbChallenge, Invoke-IncidentChallenge, Write-Separator
+Export-ModuleMember -Function Invoke-PhishingChallenge, Invoke-PasswordChallenge, Invoke-MFAChallenge, Invoke-USBChallenge, Invoke-IncidentChallenge, Write-Separator
