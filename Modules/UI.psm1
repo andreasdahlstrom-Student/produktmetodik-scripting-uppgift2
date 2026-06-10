@@ -120,7 +120,7 @@ function Write-Victory {
         $totalSeconds = $ElapsedSeconds + $PenaltySeconds
         $minutes      = [math]::Floor($totalSeconds / 60)
         $seconds      = $totalSeconds % 60
-        "$($minutes.ToString().PadLeft(2,'0')):$($seconds.ToString().PadLeft(2,'0'))"
+        $timeFormatted = "$($minutes.ToString().PadLeft(2,'0')):$($seconds.ToString().PadLeft(2,'0'))"
 
         $lines = @(
             "  DU KLARADE DET!",
@@ -139,7 +139,8 @@ function Write-Victory {
         Write-Host "  DU KLARADE DET!".PadRight($width) -ForegroundColor Green
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host ""
-        Write-Host "  [KORREKT] NYCKELBIT $KeyNumber AV $TotalKeys HITTAD!".PadRight($width) -ForegroundColor Green
+        Write-Host "  Alla $KeysFound nyckelbitar hittade!".PadRight($width) -ForegroundColor Green
+        # Write-Host "  [KORREKT] NYCKELBIT $KeyNumber AV $TotalKeys HITTAD!".PadRight($width) -ForegroundColor Green
         Write-Host ""
         Write-Host "  Speltid:   $timeFormatted".PadRight($width) -ForegroundColor Gray
         Write-Host "  Strafftid: +$($PenaltySeconds)s".PadRight($width) -ForegroundColor Red
@@ -330,7 +331,7 @@ function Write-SuccessMessage {
         # Formaterar tiden
         $minutes       = [math]::Floor($ElapsedSeconds / 60)
         $seconds       = $ElapsedSeconds % 60
-        "$($minutes.ToString().PadLeft(2,'0')):$($seconds.ToString().PadLeft(2,'0'))"
+        $timeFormatted = "$($minutes.ToString().PadLeft(2,'0')):$($seconds.ToString().PadLeft(2,'0'))"
 
         $lines = @(
             "  [KORREKT] NYCKELBIT $KeyNumber AV $TotalKeys HITTAD!",
@@ -539,6 +540,103 @@ function Write-LoadConfirmation {
 }
 
 # -----------------------------------------------------------------------------
+# HACKER-MEDDELANDE
+# Visar ett meddelande på ryska med svensk översättning under.
+# Används i Write-HackerIntro för att bygga ransomware-storyn.
+# -----------------------------------------------------------------------------
+function Write-HackerMessage {
+    param(
+        [Parameter(Mandatory)][string]$Russian,   # Rysk text (hacker-röst)
+        [Parameter(Mandatory)][string]$Swedish   # Svensk översättning för spelaren
+    )
+
+    try {
+        Write-Host ""
+        Write-Host "  >> $Russian" -ForegroundColor Red
+        Write-Host "     ($Swedish)" -ForegroundColor DarkGray
+    }
+    catch {
+        Write-Host "  Kunde inte visa hacker-meddelande: $_" -ForegroundColor Red
+    }
+}
+
+# -----------------------------------------------------------------------------
+# HACKER-INTRO
+# Spelar upp hela ransomware-storyn när spelaren trycker "Starta nytt spel".
+# Meddelanden visas på ryska med svensk översättning och paus emellan.
+# Anropas från GameEngine efter menyvalet, innan Write-Instructions.
+# -----------------------------------------------------------------------------
+function Write-HackerIntro {
+    param(
+        [int]$PauseMs = 1500   # Paus mellan meddelanden i millisekunder (1500 = 1,5 sek)
+    )
+
+    try {
+        Clear-Host
+        Write-Host ""
+        Write-Host "  =========================================" -ForegroundColor DarkRed
+        Write-Host "  [!] OBEHÖRIG ÅTKOMST DETEKTERAD" -ForegroundColor Red
+        Write-Host "  =========================================" -ForegroundColor DarkRed
+        Write-Host ""
+        Start-Sleep -Milliseconds 800
+
+        # Varningsmeddelande – filer krypterade
+        Write-HackerMessage `
+            -Russian "!!! ВСЕ ТВОИ ФАЙЛЫ ЗАШИФРОВАНЫ !!!" `
+            -Swedish "!!! ALLA DINA FILER ÄR KRYPTERADE !!!"
+
+        Start-Sleep -Milliseconds $PauseMs
+
+        # Hackaren presenterar sig
+        Write-HackerMessage `
+            -Russian "Привет. Твой компьютер теперь мой." `
+            -Swedish "Hej. Din dator tillhör mig nu."
+
+        Start-Sleep -Milliseconds $PauseMs
+
+        # Villkor för att få tillbaka filerna
+        Write-HackerMessage `
+            -Russian "Реши мои комнаты, и ты получишь всё назад." `
+            -Swedish "Lös mina rum, så får du tillbaka allt."
+
+        Start-Sleep -Milliseconds $PauseMs
+
+        # Tiden är igång
+        Write-HackerMessage `
+            -Russian "Но слушай внимательно. Часы уже идут." `
+            -Swedish "Men lyssna noga. Klockan tickar redan."
+
+        Start-Sleep -Milliseconds $PauseMs
+
+        # Lösensumma ökar med tiden
+        Write-HackerMessage `
+            -Russian "Чем больше времени уйдёт на мои вопросы, тем выше будет твой выкуп." `
+            -Swedish "Ju mer tid du tar på dig att klara mina frågor, desto högre blir din lösensumma."
+
+        Start-Sleep -Milliseconds $PauseMs
+
+        # Avslutande hot
+        Write-HackerMessage `
+            -Russian "Так что поторопись. Каждая секунда стоит тебе денег." `
+            -Swedish "Så skynda dig. Varje sekund kostar dig pengar."
+
+        Write-Host ""
+        Write-Host "  =========================================" -ForegroundColor DarkRed
+        Write-Host ""
+
+        try {
+            Read-Host "  Tryck Enter för att fortsätta"
+        }
+        catch {
+            Write-Host "  Kunde inte läsa input: $_" -ForegroundColor Red
+        }
+    }
+    catch {
+        Write-Host "  Kunde inte spela hacker-intro: $_" -ForegroundColor Red
+    }
+}
+
+# -----------------------------------------------------------------------------
 # EXPORTERA FUNKTIONER
 # Gör alla funktioner tillgängliga när modulen importeras med Import-Module
 # -----------------------------------------------------------------------------
@@ -546,4 +644,5 @@ Export-ModuleMember -Function `
     Write-Timer, Write-StatusBar, Write-Victory, `
     Write-Title, Write-Menu, Write-Instructions, Write-RoomIntro, `
     Write-SuccessMessage, Write-FailureMessage, Write-Question, `
-    Wait-Game, Write-Countdown, Write-SaveConfirmation, Write-LoadConfirmation
+    Wait-Game, Write-Countdown, Write-SaveConfirmation, Write-LoadConfirmation, `
+    Write-HackerMessage, Write-HackerIntro
