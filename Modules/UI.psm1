@@ -37,60 +37,63 @@ function Set-UIConsoleEncoding {
 Set-UIConsoleEncoding
 
 # -----------------------------------------------------------------------------
-# HP-BAR
-# Visar spelarens hälsa som en visuell stapel med Unicode-blocktecken
+# TIMER
+# Visar spelarens nuvarande tid i MM:SS-format
+# Tar emot antal sekunder och formaterar det snyggt
 # -----------------------------------------------------------------------------
-function Write-HPBar {
+function Write-Timer {
     param(
-        [Parameter(Mandatory)]
-        [int]$CurrentHP,
-        [int]$MaxHP = 100
+        [Parameter(Mandatory)][int]$ElapsedSeconds,  # Totalt antal sekunder spelaren spelat
+        [int]$PenaltySeconds = 0                     # Ackumulerade straffsekunder
     )
 
     try {
-        # Beräknar hur många av 20 block som ska vara ifyllda
-        $barLength = 20
-        $filled    = [math]::Round(($CurrentHP / $MaxHP) * $barLength)
-        $empty     = $barLength - $filled
+        # Räknar om sekunder till minuter och sekunder
+        $minutes = [math]::Floor($ElapsedSeconds / 60)
+        $seconds = $ElapsedSeconds % 60
 
-        # █ = fyllt, ░ = tomt
-        $bar = ("█" * $filled) + ("░" * $empty)
+        # Formaterar som MM:SS med ledande nolla (t.ex. 01:05)
+        $timeFormatted = "{0:D2}:{1:D2}" -f $minutes, $seconds
 
-        # Färg ändras efter hur mycket HP som återstår
-        if ($CurrentHP -gt 60) {
-            $color = "Green"
+        # Väljer färg baserat på hur lång tid som gått
+        if ($ElapsedSeconds -lt 60) {
+            $color = "Green"   # Under 1 minut
         }
-        elseif ($CurrentHP -gt 30) {
-            $color = "Yellow"
+        elseif ($ElapsedSeconds -lt 120) {
+            $color = "Yellow"  # 1-2 minuter
         }
         else {
-            $color = "Red"
+            $color = "Red"     # Över 2 minuter
         }
 
-        Write-Host "| HP: [$bar] $CurrentHP/$MaxHP" -ForegroundColor $color
+        Write-Host "| Tid: $timeFormatted" -ForegroundColor $color
+
+        # Visar straffsekunder om spelaren fått några
+        if ($PenaltySeconds -gt 0) {
+            Write-Host "| Straff: +$($PenaltySeconds)s" -ForegroundColor Red
+        }
     }
     catch {
-        Write-Host "| HP: [fel vid rendering] $_" -ForegroundColor Red
+        Write-Host "| Tid: [fel vid rendering] $_" -ForegroundColor Red
     }
 }
 
 # -----------------------------------------------------------------------------
 # STATUSBAR
-# Samlar HP, poäng och rum-progress i en ruta
+# Visar tid, straffsekunder och rum-progress
+# Anropas av GameEngine för att hålla spelaren uppdaterad
 # -----------------------------------------------------------------------------
 function Write-StatusBar {
     param(
-        [Parameter(Mandatory)][int]$CurrentHP,
-        [int]$MaxHP = 100,
-        [Parameter(Mandatory)][int]$Score,
-        [int]$CompletedRooms = 0,
-        [int]$TotalRooms = 3
+        [Parameter(Mandatory)][int]$ElapsedSeconds,  # Tid sedan spelet startade
+        [int]$PenaltySeconds = 0,                    # Totala straffsekunder
+        [int]$CompletedRooms = 0,                    # Antal avklarade rum
+        [int]$TotalRooms = 3                         # Totalt antal rum
     )
 
     try {
         Write-Host "+---------------- STATUS -------------------+" -ForegroundColor DarkGreen
-        Write-HPBar -CurrentHP $CurrentHP -MaxHP $MaxHP
-        Write-Host "| Poäng: $Score" -ForegroundColor Green
+        Write-Timer -ElapsedSeconds $ElapsedSeconds -PenaltySeconds $PenaltySeconds
         Write-Host "| Rum avklarade: $CompletedRooms av $TotalRooms" -ForegroundColor Green
         Write-Host "+-------------------------------------------+" -ForegroundColor DarkGreen
         Write-Host ""
@@ -101,49 +104,30 @@ function Write-StatusBar {
 }
 
 # -----------------------------------------------------------------------------
-# GAME OVER
-# Visas när spelarens HP når 0
-# -----------------------------------------------------------------------------
-function Write-GameOver {
-    try {
-        $lines = @(
-            "  GAME OVER",
-            "  Du tog för mycket skada och systemet stängde.",
-            "  Starta om och försök igen..."
-        )
-
-        $width = ($lines | Measure-Object -Property Length -Maximum).Maximum + 4
-        $line  = "=" * $width
-
-        Clear-Host
-        Write-Host ""
-        Write-Host $line -ForegroundColor DarkRed
-        Write-Host "  GAME OVER".PadRight($width) -ForegroundColor Red
-        Write-Host $line -ForegroundColor DarkRed
-        Write-Host "  Du tog för mycket skada och systemet stängde.".PadRight($width) -ForegroundColor Gray
-        Write-Host "  Starta om och försök igen...".PadRight($width) -ForegroundColor Gray
-        Write-Host $line -ForegroundColor DarkRed
-        Write-Host ""
-    }
-    catch {
-        Write-Host "  Kunde inte visa Game Over: $_" -ForegroundColor Red
-    }
-}
-
-# -----------------------------------------------------------------------------
 # VINST
 # Visas när spelaren klarat alla rum
+# Visar totaltid inklusive straffsekunder
 # -----------------------------------------------------------------------------
 function Write-Victory {
     param(
-        [Parameter(Mandatory)][int]$FinalScore
+        [Parameter(Mandatory)][int]$ElapsedSeconds,  # Spelarens totala tid
+        [int]$PenaltySeconds = 0,                    # Totala straffsekunder
+        [int]$KeysFound = 3                          # Antal nyckelbitar hittade
     )
 
     try {
+        # Räknar ut totaltid inklusive straff
+        $totalSeconds = $ElapsedSeconds + $PenaltySeconds
+        $minutes      = [math]::Floor($totalSeconds / 60)
+        $seconds      = $totalSeconds % 60
+        $timeFormatted = "{0:D2}:{1:D2}" -f $minutes, $seconds
+
         $lines = @(
             "  DU KLARADE DET!",
-            "  Alla säkerhetsrum är upplåsta.",
-            "  Slutpoäng: $FinalScore"
+            "  Alla $KeysFound nyckelbitar hittade!",
+            "  Speltid: $timeFormatted",
+            "  Strafftid: +$($PenaltySeconds)s",
+            "  Totaltid: $timeFormatted"
         )
 
         $width = ($lines | Measure-Object -Property Length -Maximum).Maximum + 4
@@ -154,8 +138,13 @@ function Write-Victory {
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host "  DU KLARADE DET!".PadRight($width) -ForegroundColor Green
         Write-Host $line -ForegroundColor DarkGreen
-        Write-Host "  Alla säkerhetsrum är upplåsta.".PadRight($width) -ForegroundColor Gray
-        Write-Host "  Slutpoäng: $FinalScore".PadRight($width) -ForegroundColor Green
+        Write-Host ""
+        Write-Host "  Alla $KeysFound nyckelbitar hittade! 🗝️".PadRight($width) -ForegroundColor Green
+        Write-Host ""
+        Write-Host "  Speltid:   $timeFormatted".PadRight($width) -ForegroundColor Gray
+        Write-Host "  Strafftid: +$($PenaltySeconds)s".PadRight($width) -ForegroundColor Red
+        Write-Host "  Totaltid:  $timeFormatted".PadRight($width) -ForegroundColor Cyan
+        Write-Host ""
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host ""
     }
@@ -231,17 +220,17 @@ function Write-Menu {
 
 # -----------------------------------------------------------------------------
 # SPELINSTRUKTIONER
-# Visas innan spelet börjar så spelaren förstår reglerna
+# Visas innan spelet börjar så spelaren förstår de nya reglerna
 # -----------------------------------------------------------------------------
 function Write-Instructions {
     try {
         $lines = @(
             "  SPELINSTRUKTIONER",
-            "  Du har 100 HP att börja med.",
-            "  Varje fel svar kostar dig 25 HP.",
-            "  Når HP 0 är spelet över.",
-            "  Svara rätt för att tjäna poäng och låsa upp rum.",
-            "  Klara alla 3 rum för att vinna!"
+            "  Tidräkningen börjar när du går in i första rummet.",
+            "  Varje fel svar ger +10 sekunders straff.",
+            "  Du får försöka hur många gånger som helst.",
+            "  Hitta alla 3 nyckelbitar för att vinna!",
+            "  Målet är att klara spelet på kortast möjliga tid."
         )
 
         $width = ($lines | Measure-Object -Property Length -Maximum).Maximum + 4
@@ -252,16 +241,15 @@ function Write-Instructions {
         Write-Host "  SPELINSTRUKTIONER".PadRight($width) -ForegroundColor Green
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host ""
-        Write-Host "  Du har 100 HP att börja med.".PadRight($width) -ForegroundColor Gray
-        Write-Host "  Varje fel svar kostar dig 25 HP.".PadRight($width) -ForegroundColor Gray
-        Write-Host "  Når HP 0 är spelet över.".PadRight($width) -ForegroundColor Gray
-        Write-Host "  Svara rätt för att tjäna poäng och låsa upp rum.".PadRight($width) -ForegroundColor Gray
-        Write-Host "  Klara alla 3 rum för att vinna!".PadRight($width) -ForegroundColor Gray
+        Write-Host "  Tidräkningen börjar när du går in i första rummet.".PadRight($width) -ForegroundColor Gray
+        Write-Host "  Varje fel svar ger +10 sekunders straff.".PadRight($width) -ForegroundColor Gray
+        Write-Host "  Du får försöka hur många gånger som helst.".PadRight($width) -ForegroundColor Gray
+        Write-Host "  Hitta alla 3 nyckelbitar för att vinna!".PadRight($width) -ForegroundColor Gray
+        Write-Host "  Målet är att klara spelet på kortast möjliga tid.".PadRight($width) -ForegroundColor Gray
         Write-Host ""
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host ""
 
-        # Pausar tills spelaren är redo
         try {
             Read-Host "  Tryck Enter för att fortsätta"
         }
@@ -277,14 +265,14 @@ function Write-Instructions {
 # -----------------------------------------------------------------------------
 # RUM-INTRO
 # Visas när spelaren går in i ett nytt rum
+# Informerar spelaren om vilket rum de är i och vad de letar efter
 # -----------------------------------------------------------------------------
 function Write-RoomIntro {
     param(
         [Parameter(Mandatory)][string]$RoomName,
         [Parameter(Mandatory)][string]$Description,
         [Parameter(Mandatory)][int]$RoomNumber,
-        [int]$TotalRooms = 3,
-        [int]$Points = 100
+        [int]$TotalRooms = 3
     )
 
     try {
@@ -292,7 +280,7 @@ function Write-RoomIntro {
             "  [RUM $RoomNumber AV $TotalRooms]",
             "  $RoomName",
             "  $Description",
-            "  Säkerhetsnycklar att vinna: $Points p"
+            "  Hitta nyckelbit $RoomNumber av $TotalRooms!"
         )
 
         $width = ($lines | Measure-Object -Property Length -Maximum).Maximum + 4
@@ -308,13 +296,13 @@ function Write-RoomIntro {
         Write-Host ""
         Write-Host "  $Description".PadRight($width) -ForegroundColor Gray
         Write-Host ""
-        Write-Host "  Säkerhetsnycklar att vinna: $Points p".PadRight($width) -ForegroundColor DarkGreen
+        Write-Host "  Hitta nyckelbit $RoomNumber av $TotalRooms!".PadRight($width) -ForegroundColor DarkGreen
         Write-Host ""
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host ""
 
         try {
-            Read-Host "  Tryck Enter för att börja"
+            Read-Host "  Tryck Enter för att börja – tiden startar nu!"
         }
         catch {
             Write-Host "  Kunde inte läsa input: $_" -ForegroundColor Red
@@ -326,20 +314,28 @@ function Write-RoomIntro {
 }
 
 # -----------------------------------------------------------------------------
-# RÄTT SVAR
-# Visas när spelaren svarar korrekt
+# RÄTT SVAR – NYCKELBIT HITTAD
+# Visas när spelaren svarar korrekt på en fråga
+# Visar vilken nyckelbit spelaren hittade och aktuell tid
 # -----------------------------------------------------------------------------
 function Write-SuccessMessage {
     param(
-        [Parameter(Mandatory)][string]$Message,
-        [int]$PointsEarned = 100
+        [Parameter(Mandatory)][string]$Message,      # Förklarande text om rätt svar
+        [Parameter(Mandatory)][int]$KeyNumber,       # Vilken nyckelbit spelaren hittade
+        [int]$TotalKeys = 3,                         # Totalt antal nyckelbitar
+        [int]$ElapsedSeconds = 0                     # Aktuell tid när spelaren svarade rätt
     )
 
     try {
+        # Formaterar tiden
+        $minutes       = [math]::Floor($ElapsedSeconds / 60)
+        $seconds       = $ElapsedSeconds % 60
+        $timeFormatted = "{0:D2}:{1:D2}" -f $minutes, $seconds
+
         $lines = @(
-            "  [KORREKT] SÄKERHETSNYCKEL UPPLÅST!",
+            "  [KORREKT] NYCKELBIT $KeyNumber AV $TotalKeys HITTAD!",
             "  $Message",
-            "  + $PointsEarned poäng tillagda!"
+            "  Tid: $timeFormatted"
         )
 
         $width = ($lines | Measure-Object -Property Length -Maximum).Maximum + 4
@@ -347,11 +343,11 @@ function Write-SuccessMessage {
 
         Write-Host ""
         Write-Host $line -ForegroundColor DarkGreen
-        Write-Host "  [KORREKT] SÄKERHETSNYCKEL UPPLÅST!".PadRight($width) -ForegroundColor Green
+        Write-Host "  [KORREKT] NYCKELBIT $KeyNumber AV $TotalKeys HITTAD! 🗝️".PadRight($width) -ForegroundColor Green
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host "  $Message".PadRight($width) -ForegroundColor Gray
         Write-Host ""
-        Write-Host "  + $PointsEarned poäng tillagda!".PadRight($width) -ForegroundColor Green
+        Write-Host "  Tid: $timeFormatted".PadRight($width) -ForegroundColor Cyan
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host ""
 
@@ -368,20 +364,21 @@ function Write-SuccessMessage {
 }
 
 # -----------------------------------------------------------------------------
-# FEL SVAR
-# Visas när spelaren svarar fel — HP dras av
+# FEL SVAR – TIDSSTRAFF
+# Visas när spelaren svarar fel
+# Spelaren får +10 sekunders straff men kan försöka igen
 # -----------------------------------------------------------------------------
 function Write-FailureMessage {
     param(
-        [Parameter(Mandatory)][string]$Message,
-        [int]$HPLost = 25
+        [Parameter(Mandatory)][string]$Message,  # Förklarande text om fel svar
+        [int]$PenaltySeconds = 10                # Strafftid i sekunder (standard 10)
     )
 
     try {
         $lines = @(
             "  [FEL] ÅTKOMST NEKAD!",
             "  $Message",
-            "  - $HPLost HP förlorat!"
+            "  +$($PenaltySeconds) sekunders straff!"
         )
 
         $width = ($lines | Measure-Object -Property Length -Maximum).Maximum + 4
@@ -393,7 +390,7 @@ function Write-FailureMessage {
         Write-Host $line -ForegroundColor DarkRed
         Write-Host "  $Message".PadRight($width) -ForegroundColor Gray
         Write-Host ""
-        Write-Host "  - $HPLost HP förlorat!".PadRight($width) -ForegroundColor Red
+        Write-Host "  +$($PenaltySeconds) sekunders straff!".PadRight($width) -ForegroundColor Red
         Write-Host $line -ForegroundColor DarkRed
         Write-Host ""
 
@@ -447,7 +444,7 @@ function Write-Question {
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host ""
 
-        # Läser spelarens svar — $input är reserverat i PS, använder $playerAnswer
+        # Läser spelarens svar – $input är reserverat i PS, använder $playerAnswer
         $playerAnswer = Read-Host "  Ditt svar"
         $choice       = [int]$playerAnswer
 
@@ -461,7 +458,6 @@ function Write-Question {
         return $choice
     }
     catch {
-        # Hamnar här om spelaren skriver en bokstav istället för siffra
         Write-Host ""
         Write-Host "  Ogiltigt svar! Ange endast en siffra." -ForegroundColor Red
         Write-Host ""
@@ -542,13 +538,12 @@ function Write-LoadConfirmation {
     }
 }
 
-
 # -----------------------------------------------------------------------------
 # EXPORTERA FUNKTIONER
 # Gör alla funktioner tillgängliga när modulen importeras med Import-Module
 # -----------------------------------------------------------------------------
 Export-ModuleMember -Function `
-    Write-HPBar, Write-StatusBar, Write-GameOver, Write-Victory, `
+    Write-Timer, Write-StatusBar, Write-Victory, `
     Write-Title, Write-Menu, Write-Instructions, Write-RoomIntro, `
     Write-SuccessMessage, Write-FailureMessage, Write-Question, `
     Wait-Game, Write-Countdown, Write-SaveConfirmation, Write-LoadConfirmation
