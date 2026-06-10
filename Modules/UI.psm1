@@ -53,7 +53,7 @@ function Write-Timer {
         $seconds = $ElapsedSeconds % 60
 
         # Formaterar som MM:SS med ledande nolla (t.ex. 01:05)
-        $timeFormatted = "{0:D2}:{1:D2}" -f $minutes, $seconds
+        $timeFormatted = "$($minutes.ToString().PadLeft(2,'0')):$($seconds.ToString().PadLeft(2,'0'))"
 
         # Väljer färg baserat på hur lång tid som gått
         if ($ElapsedSeconds -lt 60) {
@@ -120,7 +120,7 @@ function Write-Victory {
         $totalSeconds = $ElapsedSeconds + $PenaltySeconds
         $minutes      = [math]::Floor($totalSeconds / 60)
         $seconds      = $totalSeconds % 60
-        $timeFormatted = "{0:D2}:{1:D2}" -f $minutes, $seconds
+        "$($minutes.ToString().PadLeft(2,'0')):$($seconds.ToString().PadLeft(2,'0'))"
 
         $lines = @(
             "  DU KLARADE DET!",
@@ -139,7 +139,7 @@ function Write-Victory {
         Write-Host "  DU KLARADE DET!".PadRight($width) -ForegroundColor Green
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host ""
-        Write-Host "  Alla $KeysFound nyckelbitar hittade! 🗝️".PadRight($width) -ForegroundColor Green
+        Write-Host "  [KORREKT] NYCKELBIT $KeyNumber AV $TotalKeys HITTAD!".PadRight($width) -ForegroundColor Green
         Write-Host ""
         Write-Host "  Speltid:   $timeFormatted".PadRight($width) -ForegroundColor Gray
         Write-Host "  Strafftid: +$($PenaltySeconds)s".PadRight($width) -ForegroundColor Red
@@ -330,7 +330,7 @@ function Write-SuccessMessage {
         # Formaterar tiden
         $minutes       = [math]::Floor($ElapsedSeconds / 60)
         $seconds       = $ElapsedSeconds % 60
-        $timeFormatted = "{0:D2}:{1:D2}" -f $minutes, $seconds
+        "$($minutes.ToString().PadLeft(2,'0')):$($seconds.ToString().PadLeft(2,'0'))"
 
         $lines = @(
             "  [KORREKT] NYCKELBIT $KeyNumber AV $TotalKeys HITTAD!",
@@ -343,7 +343,7 @@ function Write-SuccessMessage {
 
         Write-Host ""
         Write-Host $line -ForegroundColor DarkGreen
-        Write-Host "  [KORREKT] NYCKELBIT $KeyNumber AV $TotalKeys HITTAD! 🗝️".PadRight($width) -ForegroundColor Green
+        Write-Host "  [KORREKT] NYCKELBIT $KeyNumber AV $TotalKeys HITTAD!".PadRight($width) -ForegroundColor Green
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host "  $Message".PadRight($width) -ForegroundColor Gray
         Write-Host ""
