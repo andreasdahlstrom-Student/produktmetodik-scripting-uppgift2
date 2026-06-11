@@ -878,69 +878,72 @@ function Write-SplashScreen {
 # Tar emot en array med score-objekt från SaveSystem
 # Varje objekt förväntas ha: Name, TotalSeconds, PenaltySeconds, Mistakes, Ransom
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# SCOREBOARD
+# Visar topplistan med spelarnas resultat, inklusive räddad lösensumma
+# -----------------------------------------------------------------------------
 function Write-Scoreboard {
     param(
-        [array]$Scores    # Array med score-objekt från SaveSystem, kan vara tom
+        [Parameter(Mandatory=$false)]
+        [array]$Scores
     )
 
-    try {
-        Clear-Host
-        Write-Host ""
-        Write-Host "==================================================" -ForegroundColor DarkGreen
-        Write-Host "              TOPPLISTA - BÄSTA TIDER            " -ForegroundColor Green
-        Write-Host "==================================================" -ForegroundColor DarkGreen
-        Write-Host ""
+    Clear-Host
+    Write-Host ""
+    Write-Host "================================================================================" -ForegroundColor DarkGreen
+    Write-Host "                           TOPPLISTA - BÄSTA TIDER                              " -ForegroundColor Green
+    Write-Host "================================================================================" -ForegroundColor DarkGreen
+    Write-Host ""
 
-        # Om inga scores finns visas ett meddelande
-        if ($null -eq $Scores -or $Scores.Count -eq 0) {
-            Write-Host "  Inga scores sparade än." -ForegroundColor Gray
-            Write-Host "  Klara spelet for att komma upp på listan!" -ForegroundColor DarkGreen
-            Write-Host ""
-        }
-        else {
-            # Rubrikrad
-            Write-Host "  #   Namn            Totaltid   Straff   Misstag" -ForegroundColor DarkGreen
-            Write-Host "  --------------------------------------------------" -ForegroundColor DarkGreen
+    if ($null -eq $Scores -or $Scores.Count -eq 0) {
+        Write-Host "  Inga scores sparade än." -ForegroundColor Gray
+        Write-Host "  Klara spelet för att komma upp på listan!" -ForegroundColor DarkGreen
+    }
+    else {
+        # Uppdaterade rubriker med den nya kolumnen för "Räddade pengar"
+        Write-Host "  #   Namn             Totaltid    Straff     Misstag    Räddade pengar" -ForegroundColor Green
+        Write-Host "  ------------------------------------------------------------------------" -ForegroundColor DarkGreen
 
-            # Skriver ut varje score numrerad
-            for ($i = 0; $i -lt [math]::Min($Scores.Count, 10); $i++) {
-                $score = $Scores[$i]
-                $place = $i + 1
+        $i = 1
+        foreach ($score in $Scores) {
+            # Visar max topp 10
+            if ($i -gt 10) { break }
 
-                # Formaterar totaltiden
-                $totalSeconds  = $score.TotalSeconds
-                $minutes       = [math]::Floor($totalSeconds / 60)
-                $secs          = $totalSeconds % 60
-                $timeFormatted = "$($minutes.ToString().PadLeft(2,'0')):$($secs.ToString().PadLeft(2,'0'))"
+            # Formaterar kolumnerna så att allt hamnar rakt under varandra
+            $rank = $i.ToString().PadRight(4)
+            $name = $score.Name.ToString().PadRight(17)
+            $time = $score.TotalTime.ToString().PadRight(12)
+            $pen  = "+$($score.Penalty)s".PadRight(11)
+            $mist = "$($score.Mistakes) fel".PadRight(11)
+            
+            # --- VIKTIGT ---
+            # Här hämtar vi pengarna. Dubbelkolla med gänget som gör GameEngine/SaveSystem 
+            # vad just denna variabel heter i deras .json fil. Jag sätter den till "SavedMoney" tills vidare.
+            $moneyValue = if ($null -ne $score.SavedMoney) { $score.SavedMoney } else { 0 }
+            $money = "$moneyValue SEK"
 
-                # Guld, silver, brons för top 3
-                if ($place -eq 1) { $placeColor = "Yellow" }
-                elseif ($place -eq 2) { $placeColor = "Gray" }
-                elseif ($place -eq 3) { $placeColor = "DarkYellow" }
-                else { $placeColor = "Green" }
+            # Färglägger topp 3 som Guld, Silver, Brons
+            $color = "Gray"
+            if ($i -eq 1) { $color = "Yellow" }
+            elseif ($i -eq 2) { $color = "White" }
+            elseif ($i -eq 3) { $color = "DarkYellow" }
 
-                $namePadded    = $score.Name.PadRight(15)
-                $timePadded    = $timeFormatted.PadRight(10)
-                $penaltyPadded = "+$($score.PenaltySeconds)s".PadRight(9)
-
-                Write-Host "  $place   $namePadded $timePadded $penaltyPadded $($score.Mistakes) fel" -ForegroundColor $placeColor
-            }
-
-            Write-Host ""
-            Write-Host "  --------------------------------------------------" -ForegroundColor DarkGreen
-        }
-
-        Write-Host ""
-
-        try {
-            Read-Host "  Tryck Enter for att gå tillbaka"
-        }
-        catch {
-            Write-Host "  Kunde inte läsa input: $_" -ForegroundColor Red
+            # Skriver ut raden
+            Write-Host "  $rank" -NoNewline -ForegroundColor Green
+            Write-Host "$name$time$pen$mist$money" -ForegroundColor $color
+            
+            $i++
         }
     }
+
+    Write-Host ""
+    Write-Host "  ------------------------------------------------------------------------" -ForegroundColor DarkGreen
+    Write-Host ""
+    try {
+        Read-Host "  Tryck Enter för att gå tillbaka"
+    }
     catch {
-        Write-Host "  Kunde inte visa scoreboard: $_" -ForegroundColor Red
+        Write-Host "  Kunde inte läsa input: $_" -ForegroundColor Red
     }
 }
 
