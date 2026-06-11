@@ -85,15 +85,18 @@ function Write-Timer {
 # -----------------------------------------------------------------------------
 function Write-StatusBar {
     param(
-        [Parameter(Mandatory)][int]$ElapsedSeconds,  # Tid sedan spelet startade
-        [int]$PenaltySeconds = 0,                    # Totala straffsekunder
-        [int]$CompletedRooms = 0,                    # Antal avklarade rum
-        [int]$TotalRooms = 3                         # Totalt antal rum
+        [Parameter(Mandatory)][int]$ElapsedSeconds,
+        [int]$PenaltySeconds = 0,
+        [int]$CompletedRooms = 0,
+        [int]$TotalRooms = 3
     )
 
     try {
         Write-Host "+---------------- STATUS -------------------+" -ForegroundColor DarkGreen
+        # Visar tid
         Write-Timer -ElapsedSeconds $ElapsedSeconds -PenaltySeconds $PenaltySeconds
+        # Visar lösensumman som ökar med tiden
+        Write-RansomCounter -ElapsedSeconds $ElapsedSeconds -PenaltySeconds $PenaltySeconds
         Write-Host "| Rum avklarade: $CompletedRooms av $TotalRooms" -ForegroundColor Green
         Write-Host "+-------------------------------------------+" -ForegroundColor DarkGreen
         Write-Host ""
@@ -108,26 +111,43 @@ function Write-StatusBar {
 # Visas när spelaren klarat alla rum
 # Visar totaltid inklusive straffsekunder
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# VINST
+# Visas när spelaren klarat alla rum
+# Visar totaltid, strafftid, antal misstag och pengar spelaren slapp betala
+# -----------------------------------------------------------------------------
 function Write-Victory {
     param(
-        [Parameter(Mandatory)][int]$ElapsedSeconds,  # Spelarens totala tid
-        [int]$PenaltySeconds = 0,                    # Totala straffsekunder
-        [int]$KeysFound = 3                          # Antal nyckelbitar hittade
+        [Parameter(Mandatory)][int]$ElapsedSeconds,
+        [int]$PenaltySeconds = 0,
+        [int]$KeysFound = 3,
+        [int]$Mistakes = 0,          # Antal felaktiga svar under spelet
+        [int]$BaseRansom = 10000     # Startbelopp för lösensumman
     )
 
     try {
-        # Räknar ut totaltid inklusive straff
-        $totalSeconds = $ElapsedSeconds + $PenaltySeconds
-        $minutes      = [math]::Floor($totalSeconds / 60)
-        $seconds      = $totalSeconds % 60
-        $timeFormatted = "$($minutes.ToString().PadLeft(2,'0')):$($seconds.ToString().PadLeft(2,'0'))"
+        # Räknar speltid utan straff
+        $playMinutes       = [math]::Floor($ElapsedSeconds / 60)
+        $playSeconds       = $ElapsedSeconds % 60
+        $playFormatted     = "$($playMinutes.ToString().PadLeft(2,'0')):$($playSeconds.ToString().PadLeft(2,'0'))"
+
+        # Räknar totaltid inklusive straff
+        $totalSeconds      = $ElapsedSeconds + $PenaltySeconds
+        $totalMinutes      = [math]::Floor($totalSeconds / 60)
+        $totalSecs         = $totalSeconds % 60
+        $totalFormatted    = "$($totalMinutes.ToString().PadLeft(2,'0')):$($totalSecs.ToString().PadLeft(2,'0'))"
+
+        # Räknar ut pengar spelaren slapp betala
+        $ransom            = $BaseRansom + ($ElapsedSeconds * 100) + ($PenaltySeconds * 500)
+        $ransomFormatted   = ("{0:N0}" -f $ransom) -replace ",", " "
 
         $lines = @(
             "  DU KLARADE DET!",
             "  Alla $KeysFound nyckelbitar hittade!",
-            "  Speltid: $timeFormatted",
-            "  Strafftid: +$($PenaltySeconds)s",
-            "  Totaltid: $timeFormatted"
+            "  Speltid:          $playFormatted",
+            "  Strafftid:        +$($PenaltySeconds)s ($Mistakes misstag)",
+            "  Totaltid:         $totalFormatted",
+            "  Du slapp betala:  $ransomFormatted SEK"
         )
 
         $width = ($lines | Measure-Object -Property Length -Maximum).Maximum + 4
@@ -140,12 +160,12 @@ function Write-Victory {
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host ""
         Write-Host "  Alla $KeysFound nyckelbitar hittade!".PadRight($width) -ForegroundColor Green
-        # Write-Host "  [KORREKT] NYCKELBIT $KeyNumber AV $TotalKeys HITTAD!".PadRight($width) -ForegroundColor Green
         Write-Host ""
-        Write-Host "  Speltid:   $timeFormatted".PadRight($width) -ForegroundColor Gray
-        Write-Host "  Strafftid: +$($PenaltySeconds)s".PadRight($width) -ForegroundColor Red
-        Write-Host "  Totaltid:  $timeFormatted".PadRight($width) -ForegroundColor Cyan
+        Write-Host "  Speltid:          $playFormatted".PadRight($width) -ForegroundColor Gray
+        Write-Host "  Strafftid:        +$($PenaltySeconds)s ($Mistakes misstag)".PadRight($width) -ForegroundColor Red
+        Write-Host "  Totaltid:         $totalFormatted".PadRight($width) -ForegroundColor Cyan
         Write-Host ""
+        Write-Host "  Du slapp betala:  $ransomFormatted SEK".PadRight($width) -ForegroundColor Green
         Write-Host $line -ForegroundColor DarkGreen
         Write-Host ""
     }
@@ -637,12 +657,344 @@ function Write-HackerIntro {
 }
 
 # -----------------------------------------------------------------------------
+# LÖSENSUMMA
+# Beräknar och visar lösenbeloppet baserat på tid och straff
+# 100 SEK per sekund + 500 SEK per straffsekund + 10 000 SEK startbelopp
+# -----------------------------------------------------------------------------
+function Write-RansomCounter {
+    param(
+        [Parameter(Mandatory)][int]$ElapsedSeconds,
+        [int]$PenaltySeconds = 0,
+        [int]$BaseRansom = 10000
+    )
+
+    try {
+        # Räknar ut lösensumman
+        $ransom = $BaseRansom + ($ElapsedSeconds * 100) + ($PenaltySeconds * 500)
+
+        # Formaterar beloppet med mellanslag som tusentalsavgränsare
+        $ransomFormatted = ("{0:N0}" -f $ransom) -replace ",", " "
+
+        # Färg ändras beroende på belopp
+        if ($ransom -lt 20000) {
+            $color = "Yellow"
+        }
+        elseif ($ransom -lt 50000) {
+            $color = "DarkYellow"
+        }
+        else {
+            $color = "Red"
+        }
+        
+
+        Write-Host "| Lösensumma: $ransomFormatted SEK" -ForegroundColor $color
+    }
+    catch {
+        Write-Host "| Lösensumma: [fel vid rendering] $_" -ForegroundColor Red
+    }
+}
+
+# -----------------------------------------------------------------------------
+# ANIMERAD SPLASH SCREEN
+# Visar ASCII-logotypen rad för rad med en fallande animation
+# Körs en gång när programmet startar, innan huvudmenyn visas
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# ANIMERAD SPLASH SCREEN
+# Fas 1: Matrix rain – gröna tecken kaskadar ner som i "The Matrix"
+# Fas 2: Dekryptering – ASCII-konsten avslöjas gradvis från glitch-tecken
+# Fas 3: Typewriter – titeln skrivs ut tecken för tecken
+# Körs en gång när programmet startar, innan huvudmenyn visas
+# -----------------------------------------------------------------------------
+function Write-SplashScreen {
+    param(
+        [int]$DelayMs = 100    # Fördröjning mellan dekrypteringsframes (ms)
+    )
+
+    try {
+        # Dölj markören under animationen för renare utseende
+        [Console]::CursorVisible = $false
+
+        # Glitch-tecken som simulerar krypterad data
+        $glitchChars = @('█','▓','▒','░','╔','╗','╚','╝','║','═','▄','▀','■','◄','►','●')
+
+        # Den riktiga ASCII-konsten som ska "dekrypteras"
+        $asciiLines = @(
+            "     ░█████╗░██╗░░░██╗██████╗░███████╗██████╗   ",
+            "     ██╔══██╗╚██╗░██╔╝██╔══██╗██╔════╝██╔══██╗  ",
+            "     ██║░░╚═╝░╚████╔╝░██████╦╝█████╗░░██████╔╝  ",
+            "     ██║░░██╗░░╚██╔╝░░██╔══██╗██╔══╝░░██╔══██╗  ",
+            "     ╚█████╔╝░░░██║░░░██████╦╝███████╗██║░░██║  ",
+            "     ░╚════╝░░░░╚═╝░░░╚═════╝░╚══════╝╚═╝░░╚═╝  "
+        )
+
+        $separator = "=================================================="
+
+        # =============================================================
+        # FAS 1: MATRIX RAIN
+        # Gröna tecken kaskadar ner som i filmen "The Matrix"
+        # =============================================================
+        Clear-Host
+        $matrixChars = @('0','1','@','#','$','%','&','*','+','=','<','>','/','\','|','-')
+
+        Write-Host ""
+        for ($row = 0; $row -lt 18; $row++) {
+            $line = ""
+            for ($col = 0; $col -lt 50; $col++) {
+                $line += $matrixChars[(Get-Random -Maximum $matrixChars.Length)]
+            }
+
+            # Variera färg mellan rader för djupeffekt
+            if ($row % 3 -eq 0) { $rainColor = "Green" }
+            else { $rainColor = "DarkGreen" }
+
+            Write-Host "  $line" -ForegroundColor $rainColor
+            Start-Sleep -Milliseconds 35
+        }
+
+        Start-Sleep -Milliseconds 500
+
+        # =============================================================
+        # FAS 2: DEKRYPTERINGSANIMATION
+        # ASCII-konsten börjar som slumpmässiga glitch-tecken och
+        # "dekrypteras" gradvis till den riktiga CYBER-logotypen.
+        # Använder SetCursorPosition för att skriva över utan flimmer.
+        # =============================================================
+        Clear-Host
+
+        # Rad 0: tom rad
+        Write-Host ""
+        # Rad 1: separator
+        Write-Host $separator -ForegroundColor DarkGreen
+        # Rad 2: progress-text
+        Write-Host "  [DEKRYPTERAR...]" -ForegroundColor DarkGreen
+
+        # Rad 3–8: fyll med glitch-tecken initialt
+        foreach ($realLine in $asciiLines) {
+            $scrambled = ""
+            for ($c = 0; $c -lt $realLine.Length; $c++) {
+                if ($realLine[$c] -eq ' ') { $scrambled += ' ' }
+                else { $scrambled += $glitchChars[(Get-Random -Maximum $glitchChars.Length)] }
+            }
+            Write-Host $scrambled -ForegroundColor Green
+        }
+
+        # Rad 9: tom rad, Rad 10: separator
+        Write-Host "                                                  "
+        Write-Host $separator -ForegroundColor DarkGreen
+
+        # ASCII-konsten börjar på rad 3 i konsolen
+        $asciiStartRow = 3
+
+        # Animera dekryptering – varje frame avslöjar fler riktiga tecken
+        $totalFrames = 12
+        for ($frame = 1; $frame -le $totalFrames; $frame++) {
+
+            # Uppdatera progress-texten med animerade punkter
+            $dots = "." * (($frame % 3) + 1)
+            [Console]::SetCursorPosition(0, 2)
+            Write-Host "  [DEKRYPTERAR$($dots)]     " -ForegroundColor DarkGreen
+
+            # Skriv om varje ASCII-rad med fler riktiga tecken per frame
+            for ($lineIdx = 0; $lineIdx -lt $asciiLines.Length; $lineIdx++) {
+                [Console]::SetCursorPosition(0, $asciiStartRow + $lineIdx)
+
+                $realLine = $asciiLines[$lineIdx]
+                $output = ""
+                for ($c = 0; $c -lt $realLine.Length; $c++) {
+                    $char = $realLine[$c]
+                    if ($char -eq ' ') {
+                        $output += ' '
+                    }
+                    elseif ((Get-Random -Maximum $totalFrames) -lt $frame) {
+                        $output += $char   # Visa riktigt tecken
+                    }
+                    else {
+                        $output += $glitchChars[(Get-Random -Maximum $glitchChars.Length)]
+                    }
+                }
+                Write-Host $output -ForegroundColor Green
+            }
+
+            Start-Sleep -Milliseconds $DelayMs
+        }
+
+        # Slutgiltig ren visning – 100% dekrypterat
+        [Console]::SetCursorPosition(0, 2)
+        Write-Host "                                                  "
+
+        for ($lineIdx = 0; $lineIdx -lt $asciiLines.Length; $lineIdx++) {
+            [Console]::SetCursorPosition(0, $asciiStartRow + $lineIdx)
+            Write-Host $asciiLines[$lineIdx] -ForegroundColor Green
+        }
+
+        Start-Sleep -Milliseconds 300
+
+        # =============================================================
+        # FAS 3: TITEL OCH TAGLINE MED TYPEWRITER-EFFEKT
+        # =============================================================
+        [Console]::SetCursorPosition(0, $asciiStartRow + $asciiLines.Length)
+        Write-Host "                                                  "
+
+        Start-Sleep -Milliseconds 300
+        Write-Host $separator -ForegroundColor DarkGreen
+
+        # Typewriter-effekt: titeln skrivs ut tecken för tecken
+        $title = "           CYBER SECURITY ESCAPE ROOM            "
+        foreach ($char in $title.ToCharArray()) {
+            Write-Host -NoNewline $char -ForegroundColor Green
+            if ($char -ne ' ') {
+                Start-Sleep -Milliseconds 30
+            }
+        }
+        Write-Host ""
+
+        Start-Sleep -Milliseconds 300
+        Write-Host $separator -ForegroundColor DarkGreen
+
+        Start-Sleep -Milliseconds 300
+        Write-Host "     Samla nycklarna. Lås upp rummen. Fly.       " -ForegroundColor DarkGreen
+
+        Start-Sleep -Milliseconds 200
+        Write-Host $separator -ForegroundColor DarkGreen
+        Write-Host ""
+
+        Start-Sleep -Milliseconds 800
+
+        # Visa markören igen
+        [Console]::CursorVisible = $true
+    }
+    catch {
+        # Säkerställ att markören alltid visas igen
+        [Console]::CursorVisible = $true
+        # Fallback till vanliga titelskärmen om animationen misslyckas
+        Write-Title
+    }
+}
+
+# -----------------------------------------------------------------------------
+# SCOREBOARD
+# Visar topplistan med bästa tider
+# Tar emot en array med score-objekt från SaveSystem
+# Varje objekt förväntas ha: Name, TotalSeconds, PenaltySeconds, Mistakes, Ransom
+# -----------------------------------------------------------------------------
+function Write-Scoreboard {
+    param(
+        [array]$Scores    # Array med score-objekt från SaveSystem, kan vara tom
+    )
+
+    try {
+        Clear-Host
+        Write-Host ""
+        Write-Host "==================================================" -ForegroundColor DarkGreen
+        Write-Host "              TOPPLISTA - BÄSTA TIDER            " -ForegroundColor Green
+        Write-Host "==================================================" -ForegroundColor DarkGreen
+        Write-Host ""
+
+        # Om inga scores finns visas ett meddelande
+        if ($null -eq $Scores -or $Scores.Count -eq 0) {
+            Write-Host "  Inga scores sparade än." -ForegroundColor Gray
+            Write-Host "  Klara spelet for att komma upp på listan!" -ForegroundColor DarkGreen
+            Write-Host ""
+        }
+        else {
+            # Rubrikrad
+            Write-Host "  #   Namn            Totaltid   Straff   Misstag" -ForegroundColor DarkGreen
+            Write-Host "  --------------------------------------------------" -ForegroundColor DarkGreen
+
+            # Skriver ut varje score numrerad
+            for ($i = 0; $i -lt [math]::Min($Scores.Count, 10); $i++) {
+                $score = $Scores[$i]
+                $place = $i + 1
+
+                # Formaterar totaltiden
+                $totalSeconds  = $score.TotalSeconds
+                $minutes       = [math]::Floor($totalSeconds / 60)
+                $secs          = $totalSeconds % 60
+                $timeFormatted = "$($minutes.ToString().PadLeft(2,'0')):$($secs.ToString().PadLeft(2,'0'))"
+
+                # Guld, silver, brons för top 3
+                if ($place -eq 1) { $placeColor = "Yellow" }
+                elseif ($place -eq 2) { $placeColor = "Gray" }
+                elseif ($place -eq 3) { $placeColor = "DarkYellow" }
+                else { $placeColor = "Green" }
+
+                $namePadded    = $score.Name.PadRight(15)
+                $timePadded    = $timeFormatted.PadRight(10)
+                $penaltyPadded = "+$($score.PenaltySeconds)s".PadRight(9)
+
+                Write-Host "  $place   $namePadded $timePadded $penaltyPadded $($score.Mistakes) fel" -ForegroundColor $placeColor
+            }
+
+            Write-Host ""
+            Write-Host "  --------------------------------------------------" -ForegroundColor DarkGreen
+        }
+
+        Write-Host ""
+
+        try {
+            Read-Host "  Tryck Enter for att gå tillbaka"
+        }
+        catch {
+            Write-Host "  Kunde inte läsa input: $_" -ForegroundColor Red
+        }
+    }
+    catch {
+        Write-Host "  Kunde inte visa scoreboard: $_" -ForegroundColor Red
+    }
+}
+
+# -----------------------------------------------------------------------------
+# SPARA-PROMPT
+# Frågar spelaren om de vill spara sitt spel under spelets gång
+# Returnerar $true om spelaren vill spara, $false om inte
+# Anropas av GameEngine som sedan skickar till SaveSystem om $true returneras
+# -----------------------------------------------------------------------------
+function Write-SavePrompt {
+    try {
+        Write-Host ""
+        Write-Host "==================================================" -ForegroundColor DarkGreen
+        Write-Host "  SPARA SPEL" -ForegroundColor Green
+        Write-Host "==================================================" -ForegroundColor DarkGreen
+        Write-Host ""
+        Write-Host "  Vill du spara ditt spel och fortsätta senare?" -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "  [1] Ja, spara spelet" -ForegroundColor Green
+        Write-Host "  [2] Nej, fortsätt spela" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "==================================================" -ForegroundColor DarkGreen
+        Write-Host ""
+
+        try {
+            $playerAnswer = Read-Host "  Ditt val"
+            $choice       = [int]$playerAnswer
+
+            if ($choice -eq 1) {
+                return $true   # Spelaren vill spara
+            }
+            else {
+                return $false  # Spelaren vill inte spara
+            }
+        }
+        catch {
+            # Vid ogiltigt svar fortsätter spelet utan att spara
+            return $false
+        }
+    }
+    catch {
+        Write-Host "  Kunde inte visa spara-prompt: $_" -ForegroundColor Red
+        return $false
+    }
+}
+
+# -----------------------------------------------------------------------------
 # EXPORTERA FUNKTIONER
 # Gör alla funktioner tillgängliga när modulen importeras med Import-Module
 # -----------------------------------------------------------------------------
 Export-ModuleMember -Function `
-    Write-Timer, Write-StatusBar, Write-Victory, `
-    Write-Title, Write-Menu, Write-Instructions, Write-RoomIntro, `
-    Write-SuccessMessage, Write-FailureMessage, Write-Question, `
-    Wait-Game, Write-Countdown, Write-SaveConfirmation, Write-LoadConfirmation, `
+    Write-Timer, Write-RansomCounter, Write-StatusBar, Write-Victory, `
+    Write-SplashScreen, Write-Title, Write-Menu, Write-Instructions, `
+    Write-RoomIntro, Write-SuccessMessage, Write-FailureMessage, `
+    Write-Question, Wait-Game, Write-Countdown, Write-Scoreboard, `
+    Write-SavePrompt, Write-SaveConfirmation, Write-LoadConfirmation, `
     Write-HackerMessage, Write-HackerIntro
