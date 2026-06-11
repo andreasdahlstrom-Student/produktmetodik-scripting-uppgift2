@@ -882,6 +882,10 @@ function Write-SplashScreen {
 # SCOREBOARD
 # Visar topplistan med spelarnas resultat, inklusive räddad lösensumma
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# SCOREBOARD
+# Visar topplistan med spelarnas resultat, inklusive räddad lösensumma
+# -----------------------------------------------------------------------------
 function Write-Scoreboard {
     param(
         [Parameter(Mandatory=$false)]
@@ -909,18 +913,29 @@ function Write-Scoreboard {
             # Visar max topp 10
             if ($i -gt 10) { break }
 
+            # --- SÄKER HÄMTNING AV VÄRDEN ---
+            # Fallbacks för att hantera både engelska och svenska variabelnamn från json/test-skript
+            $valName  = if ($null -ne $score.Name) { $score.Name } else { $score.Namn }
+            $valTime  = if ($null -ne $score.TotalTime) { $score.TotalTime } else { $score.Totaltid }
+            $valPen   = if ($null -ne $score.Penalty) { $score.Penalty } else { $score.Straff }
+            $valMist  = if ($null -ne $score.Mistakes) { $score.Mistakes } else { $score.Misstag }
+            
+            # Kollar flera möjliga namn för pengarna också!
+            $valMoney = if ($null -ne $score.SavedMoney) { $score.SavedMoney } elseif ($null -ne $score.Ransom) { $score.Ransom } elseif ($null -ne $score.Pengar) { $score.Pengar } else { 0 }
+
+            # Förhindra krasch om en egenskap helt saknas (skyddsnät)
+            if ($null -eq $valTime) { $valTime = "00:00" }
+            if ($null -eq $valName) { $valName = "Okänd" }
+            if ($null -eq $valPen)  { $valPen = 0 }
+            if ($null -eq $valMist) { $valMist = 0 }
+
             # Formaterar kolumnerna så att allt hamnar rakt under varandra
             $rank = $i.ToString().PadRight(4)
-            $name = $score.Name.ToString().PadRight(17)
-            $time = $score.TotalTime.ToString().PadRight(12)
-            $pen  = "+$($score.Penalty)s".PadRight(11)
-            $mist = "$($score.Mistakes) fel".PadRight(11)
-            
-            # --- VIKTIGT ---
-            # Här hämtar vi pengarna. Dubbelkolla med gänget som gör GameEngine/SaveSystem 
-            # vad just denna variabel heter i deras .json fil. Jag sätter den till "SavedMoney" tills vidare.
-            $moneyValue = if ($null -ne $score.SavedMoney) { $score.SavedMoney } else { 0 }
-            $money = "$moneyValue SEK"
+            $name = $valName.ToString().PadRight(17)
+            $time = $valTime.ToString().PadRight(12)
+            $pen  = "+$($valPen)s".PadRight(11)
+            $mist = "$($valMist) fel".PadRight(11)
+            $money = "$valMoney SEK"
 
             # Färglägger topp 3 som Guld, Silver, Brons
             $color = "Gray"
