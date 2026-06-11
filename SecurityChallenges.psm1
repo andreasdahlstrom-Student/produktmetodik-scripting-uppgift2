@@ -1,307 +1,291 @@
+# =============================================================================
 # SecurityChallenges.psm1
-# Här finns spelets säkerhetsutmaningar.
-# Varje funktion returnerar ett objekt med Success, Points och Feedback.
+# =============================================================================
+# Ansvar:
+#   Den här modulen ansvarar för quizlogiken i spelet.
+#   Den innehåller frågorna, läser spelarens svar och avgör om svaret är rätt.
+#
+# Funktioner som GameEngine anropar utifrån:
+#   Invoke-RansomwareQuiz     - kör hela quizet med alla frågor
+#   Invoke-RansomwareQuestion - hanterar en enskild fråga
+#
+# Interna hjälpfunktioner som bara används i den här filen:
+#   Get-RansomwareQuestions   - returnerar alla frågor som objekt
+#   Read-RansomwareChoice     - läser och validerar spelarens svar
+# =============================================================================
 
-# ==========================================
-# Hjälpfunktioner
-# ==========================================
 
-# Skapar ett standardiserat resultatobjekt
-function New-ChallengeResult {
+# -----------------------------------------------------------------------------
+# GET-RANSOMWAREQUESTIONS
+# Returnerar alla ransomware-frågor som en lista av objekt.
+# Varje objekt innehåller frågetext, svarsalternativ, rätt svar och feedback.
+# -----------------------------------------------------------------------------
+function Get-RansomwareQuestions {
+    return @(
+        # Fråga 1: Vad är ransomware?
+        [PSCustomObject]@{
+            Number      = 1
+            Question    = "Vad är ransomware?"
+            Options     = @(
+                "A. Ett program som förbättrar datorns prestanda",
+                "B. Skadlig kod som krypterar filer och kräver lösensumma",
+                "C. Ett vanligt antivirusprogram"
+            )
+            Correct     = "B"
+            # Texten som visas när spelaren svarar rätt
+            CorrectText = "Rätt. Ransomware låser eller krypterar filer och försöker pressa offret på pengar."
+            # Texten som visas när spelaren svarar fel
+            WrongText   = "Fel. Ransomware är skadlig kod som krypterar filer och kräver lösensumma."
+        }
+
+        # Fråga 2: Vad gör man först vid misstänkt ransomware?
+        [PSCustomObject]@{
+            Number      = 2
+            Question    = "Vad är det bästa första steget om du misstänker ransomware?"
+            Options     = @(
+                "A. Koppla bort datorn från nätverket och kontakta IT",
+                "B. Betala lösensumman direkt",
+                "C. Starta om datorn flera gånger"
+            )
+            Correct     = "A"
+            CorrectText = "Rätt. Att koppla bort datorn kan bromsa spridning, och IT kan hjälpa till på rätt sätt."
+            WrongText   = "Fel. Första steget är att isolera datorn från nätverket och kontakta IT eller ansvarig vuxen."
+        }
+
+        # Fråga 3: Vilket skydd minskar risken att förlora data?
+        [PSCustomObject]@{
+            Number      = 3
+            Question    = "Vilket skydd minskar risken att förlora data vid ransomware?"
+            Options     = @(
+                "A. Regelbundna säkerhetskopior",
+                "B. Att använda samma lösenord överallt",
+                "C. Att ignorera säkerhetsuppdateringar"
+            )
+            Correct     = "A"
+            CorrectText = "Rätt. Säkerhetskopior gör det möjligt att återställa filer utan att betala angriparen."
+            WrongText   = "Fel. Regelbundna säkerhetskopior är ett av de viktigaste skydden mot dataförlust."
+        }
+
+        # Fråga 4: Hur sprids ransomware?
+        [PSCustomObject]@{
+            Number      = 4
+            Question    = "Hur sprids ransomware ofta?"
+            Options     = @(
+                "A. Genom phishingmejl och skadliga bilagor",
+                "B. Genom att skärmen är för ljus",
+                "C. Genom att datorn är avstängd"
+            )
+            Correct     = "A"
+            CorrectText = "Rätt. Phishingmejl, falska länkar och skadliga bilagor är vanliga vägar in."
+            WrongText   = "Fel. Ransomware sprids ofta via phishingmejl, skadliga bilagor och osäkra länkar."
+        }
+
+        # Fråga 5: Varför ska man vara försiktig med okända bilagor?
+        [PSCustomObject]@{
+            Number      = 5
+            Question    = "Varför bör man vara försiktig med okända bilagor?"
+            Options     = @(
+                "A. De kan innehålla skadlig kod",
+                "B. De gör alltid datorn snabbare",
+                "C. De uppdaterar automatiskt antivirus"
+            )
+            Correct     = "A"
+            CorrectText = "Rätt. Okända bilagor kan innehålla skadlig kod och ska kontrolleras innan de öppnas."
+            WrongText   = "Fel. Okända bilagor kan innehålla skadlig kod, även om mejlet ser trovärdigt ut."
+        }
+    )
+}
+
+
+# -----------------------------------------------------------------------------
+# READ-RANSOMWARECHOICE
+# Läser spelarens svar från terminalen och returnerar det som en bokstav.
+# Accepterar både bokstäver (A, B, C) och siffror (1, 2, 3) (LOL)
+# Returnerar $null om svaret är ogiltigt så att frågan kan visas igen.
+# -----------------------------------------------------------------------------
+function Read-RansomwareChoice {
     param(
+        # Texten som visas i terminalen när spelaren ska skriva sitt svar
         [Parameter(Mandatory)]
-        [bool]$Success,
-
-        [Parameter(Mandatory)]
-        [int]$Points,
-
-        [Parameter(Mandatory)]
-        [string]$Feedback
+        [string]$Prompt
     )
 
-    return [PSCustomObject]@{
-        Success  = $Success
-        Points   = $Points
-        Feedback = $Feedback
-    }
-}
+    try {
+        # Tömmer buffrade tangenttryckningar så att tidigare Enter-tryckningar
+        # inte skickas in automatiskt som svar på nästa fråga
+        $host.UI.RawUI.FlushInputBuffer()
 
-# Läser in ett giltigt val från användaren
-function Read-ChallengeChoice {
-    param([string]$Prompt)
-
-    while ($true) {
+        # Väntar på att spelaren skriver något och trycker Enter
         $choice = Read-Host $Prompt
 
-        if ($choice -match '^[1-3]$') {
-            return [int]$choice
+        # Om spelaren bara tryckte Enter utan att skriva något returneras $null
+        if ([string]::IsNullOrWhiteSpace($choice)) {
+            return $null
         }
 
-        Write-Host "Ogiltigt val. Välj 1, 2 eller 3." -ForegroundColor DarkYellow
-    }
-}
+        # Tar bort mellanslag och gör om till versaler så att "a" och "A" behandlas lika
+        $choice = $choice.Trim().ToUpper()
 
-# Skriver ut en visuell avdelare i terminalen
-function Write-Separator {
-    Write-Host ""
-    Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
-    Write-Host ""
-}
-function Invoke-PhishingChallenge {
-
-    Write-Host ""
-    Write-Host "===============================" -ForegroundColor DarkCyan
-    Write-Host "  TERMINALUTMANING: INKORGEN   " -ForegroundColor Cyan
-    Write-Host "===============================" -ForegroundColor DarkCyan
-    Write-Host ""
-# Visa scenario för användaren
-    Write-Host "SCENARIO:" -ForegroundColor Yellow
-    Write-Separator
-
-    Write-Host "Du får ett mejl som säger: 'Ditt konto kommer att stängas inom 10 minuter!'" -ForegroundColor Gray
-    Write-Host "Avsändaren liknar skolans adress, men några bokstäver är fel. En stor knapp blinkar" -ForegroundColor Gray
-    Write-Host ""
-
-    Write-Separator
-
-    Write-Host "ALTERNATIV:" -ForegroundColor Yellow
-    Write-Host "1. Klicka på knappen direkt för att rädda kontot."
-    Write-Host "2. Kontrollera avsändaren och gå själv till skolans riktiga inloggningssida"
-    Write-Host "3. Svara på mejlet med ditt användarnamn och lösenord."
-    Write-Host ""
-# Läs in användarens val
-    $choice = Read-ChallengeChoice -Prompt "Välj säker åtgärd"
-# Utvärdera svaret
-$result = switch ($choice) {
-
-        1 {
-            $feedback = "FEL: Klicka aldrig på misstänkta länkar."
-            Write-Host $feedback -ForegroundColor Red
-            New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
-        }
-
-        2 {
-            $feedback = "RÄTT: Du verifierade avsändaren först."
-            Write-Host $feedback -ForegroundColor Green
-            New-ChallengeResult -Success $true -Points 10 -Feedback $feedback
-        }
-
-        3 {
-            $feedback = "FEL: Att dela lösenord är alltid osäkert."
-            Write-Host $feedback -ForegroundColor Red
-            New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
+        # Översätter spelarens svar till en bokstav
+        # Siffror 1, 2, 3 accepteras som alternativ till A, B, C
+        # Allt annat returneras som $null vilket betyder ogiltigt svar
+        switch ($choice) {
+            "1" { return "A" }
+            "2" { return "B" }
+            "3" { return "C" }
+            "A" { return "A" }
+            "B" { return "B" }
+            "C" { return "C" }
+            default { return $null }
         }
     }
-
-    Write-Host ""
-    Read-Host "Tryck Enter för att fortsätta"
-
-return $result
-}
-function Invoke-PasswordChallenge {
-
-    Write-Host ""
-    Write-Host "===============================" -ForegroundColor DarkCyan
-    Write-Host "  TERMINALUTMANING: VALVLÅSET  " -ForegroundColor Cyan
-    Write-Host "===============================" -ForegroundColor DarkCyan
-    Write-Host ""
-
-    Write-Host "SCENARIO:" -ForegroundColor Yellow
-    Write-Separator
-   
-    Write-Host "Valvet visar tre möjliga lösenord. Ett svagt val startar larmet." -ForegroundColor Gray
-    Write-Host "Du behöver välja det lösenord som bäst står emot gissning och knäckning." -ForegroundColor Gray
-    Write-Host ""
-
-    Write-Separator
-    
-    Write-Host "ALTERNATIV:" -ForegroundColor Yellow
-    Write-Host "1. password123"
-    Write-Host "2. sommar2026"
-    Write-Host "3. Vinter!Kamera-73-Skog"
-    Write-Host ""
-
-    $choice = Read-ChallengeChoice -Prompt "Välj lösenord"
-
-$result = switch ($choice) {
-
-    1 {
-        $feedback = "FEL: Detta lösenord är för svagt och lätt att gissa."
-        Write-Host $feedback -ForegroundColor Red
-        New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
-    }
-
-    2 {
-        $feedback = "FEL: Även om det ser bättre ut är det fortfarande förutsägbart."
-        Write-Host $feedback -ForegroundColor Red
-        New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
-    }
-
-    3 {
-        $feedback = "RÄTT: Lång, unik och blandad - mycket starkare lösenord."
-        Write-Host $feedback -ForegroundColor Green
-        New-ChallengeResult -Success $true -Points 10 -Feedback $feedback
+    catch {
+        # Om något oväntat gick fel vid inläsningen visas ett felmeddelande
+        # och $null returneras så att frågan visas igen utan tidstillägg
+        Write-Host "Terminalen kunde inte läsa ditt svar. Försök igen." -ForegroundColor Red
+        return $null
     }
 }
 
-Write-Host ""
-Read-Host "Tryck Enter för att fortsätta"
 
-return $result
-}
-function Invoke-MFAChallenge {
+# -----------------------------------------------------------------------------
+# INVOKE-RANSOMWAREQUIZ
+# Kör hela quizet från första till sista frågan.
+# Hämtar frågorna, kör dem en i taget och returnerar ett slutresultat.
+# -----------------------------------------------------------------------------
+function Invoke-RansomwareQuiz {
+    param(
+        # GameState håller reda på spelarens framsteg, fel och straffsekunder
+        [Parameter(Mandatory)]
+        [object]$GameState
+    )
 
-    Write-Host ""
-    Write-Host "===============================" -ForegroundColor DarkCyan
-    Write-Host " TERMINALUTMANING: ANDRA LÅSET " -ForegroundColor Cyan
-    Write-Host "===============================" -ForegroundColor DarkCyan
-    Write-Host ""
+    # Hämtar alla frågor från hjälpfunktionen
+    $questions = Get-RansomwareQuestions
 
-    Write-Host "SCENARIO:" -ForegroundColor Yellow
-    Write-Separator
+    # Går igenom varje fråga i ordning
+    foreach ($question in $questions) {
 
-    Write-Host "Dörren skickar en MFA-notis. Problemet är att du inte försöker logga in." -ForegroundColor Gray
-    Write-Host "Om du godkänner fel notis kan någon annan komma in." -ForegroundColor Gray
-    Write-Host ""
+        # Kör en enskild fråga och väntar tills spelaren svarar rätt
+        Invoke-RansomwareQuestion -Question $question -GameState $GameState -TotalQuestions $questions.Count
 
-    Write-Separator
-
-    Write-Host "ALTERNATIV:" -ForegroundColor Yellow
-    Write-Host "1. Godkänn notisen för att bli av med den."
-    Write-Host "2. Neka notisen och rapportera eller byt lösenord enligt rutinen."
-    Write-Host "3. Stäng av MFA eftersom det stör."
-    Write-Host ""
-
-    $choice = Read-ChallengeChoice -Prompt "Välj säker åtgärd"
-
-$result = switch ($choice) {
-
-    1 {
-        $feedback = "FEL: Du godkände en inloggning du inte startade själv."
-        Write-Host $feedback -ForegroundColor Red
-        New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
+        # Räknar upp antalet avklarade frågor efter varje godkänt svar
+        $GameState.completedQuestions++
     }
 
-    2 {
-        $feedback = "RÄTT: Du blockerar och hanterar misstänkt inloggning korrekt."
-        Write-Host $feedback -ForegroundColor Green
-        New-ChallengeResult -Success $true -Points 10 -Feedback $feedback
-    }
-
-    3 {
-        $feedback = "FEL: Att stänga av MFA gör kontot osäkert."
-        Write-Host $feedback -ForegroundColor Red
-        New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
+    # Returnerar ett sammanfattningsobjekt när alla frågor är klara
+    # GameEngine använder det här för att spara resultatet och visa slutskärmen
+    return [PSCustomObject]@{
+        Success            = $true
+        CompletedQuestions = $GameState.completedQuestions
+        WrongAnswers       = $GameState.wrongAnswers
+        PenaltySeconds     = $GameState.penaltySeconds
     }
 }
 
-Write-Host ""
-Read-Host "Tryck Enter för att fortsätta"
 
-return $result
-}
+# -----------------------------------------------------------------------------
+# INVOKE-RANSOMWAREQUESTION
+# Hanterar en enskild fråga.
+# Visar frågan, läser spelarens svar och ger feedback.
+# Loopar tills spelaren svarar rätt - fel svar ger tidstillägg men spelaren
+# får försöka igen på samma fråga.
+# -----------------------------------------------------------------------------
+function Invoke-RansomwareQuestion {
+    param(
+        # Question innehåller frågetext, svarsalternativ, rätt svar och feedback
+        [Parameter(Mandatory)]
+        [object]$Question,
 
-function Invoke-USBChallenge {
+        # GameState används för att hämta aktuell tid och lägga till straffsekunder
+        [Parameter(Mandatory)]
+        [object]$GameState,
 
-    Write-Host ""
-    Write-Host "===============================" -ForegroundColor DarkCyan
-    Write-Host " TERMINALUTMANING: OKÄND ENHET " -ForegroundColor Cyan
-    Write-Host "===============================" -ForegroundColor DarkCyan
-    Write-Host ""
+        # TotalQuestions används för att visa "Fråga X av Y" i frågehuvudet
+        [Parameter(Mandatory)]
+        [int]$TotalQuestions
+    )
 
-    Write-Host "SCENARIO:" -ForegroundColor Yellow
-    Write-Separator
-    
-    Write-Host "USB-minnet ligger precis bredvid labbdatorn. Skärmen visar: 'Anslut enhet för analys'." -ForegroundColor Gray
-    Write-Host "Det kan vara oskyldigt, men det kan också vara en fälla." -ForegroundColor Gray
-    Write-Host ""
+    # Sätts till $false i början och blir $true när spelaren svarar rätt
+    # While-loopen fortsätter så länge den är $false
+    $answeredCorrectly = $false
 
-    Write-Separator
+    while (-not $answeredCorrectly) {
 
-    Write-Host "ALTERNATIV:" -ForegroundColor Yellow
-    Write-Host "1. Koppla in USB och öppna filerna"
-    Write-Host "2. Lämna det till lärare eller IT-ansvarig utan att koppla in det."
-    Write-Host "3. Kopiera filerna snabbt och radera sedan USB-minnet."
-    Write-Host ""
+        # Hela frågans logik ligger i ett try/catch så att ett oväntat fel
+        # inte kraschar spelet utan istället visar ett felmeddelande och loopar om
+        try {
 
-    $choice = Read-ChallengeChoice -Prompt "Välj säker åtgärd"
+            # Försöker hämta och visa aktuell tid för spelaren
+            try {
+                # Hämtar aktuell tid från GameEngine
+                $currentTime = Get-CurrentRansomwareTime -GameState $GameState
 
-$result = switch ($choice) {
-    1 {
-        $feedback = "FEL: Okända USB-enheter kan innehålla skadlig kod."
-        Write-Host $feedback -ForegroundColor Red
-        New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
-    }
+                # Visar frågenummer och ackumulerade straffsekunder högst upp
+                Show-QuestionHeader -QuestionNumber $Question.Number -TotalQuestions $TotalQuestions -PenaltySeconds $currentTime.PenaltySeconds
 
-    2 {
-        $feedback = "RÄTT: Du lämnar enheten till ansvarig istället för att riskera datorn."
-        Write-Host $feedback -ForegroundColor Green
-        New-ChallengeResult -Success $true -Points 10 -Feedback $feedback
-    }
+                # Visar den löpande timern med total tid, antal fel och straffsekunder
+                Show-CurrentTimer -TotalSeconds $currentTime.TotalSeconds -WrongAnswers $currentTime.WrongAnswers -PenaltySeconds $currentTime.PenaltySeconds
+            }
+            catch {
+                # Om timern inte kan visas fortsätter spelet ändå med den info vi har
+                Show-QuestionHeader -QuestionNumber $Question.Number -TotalQuestions $TotalQuestions -PenaltySeconds $GameState.penaltySeconds
+                Show-Error "Kunde inte visa aktuell tid: $($_.Exception.Message)"
+            }
 
-    3 {
-        $feedback = "FEL: Att öppna okända filer kan vara farligt."
-        Write-Host $feedback -ForegroundColor Red
-        New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
-    }
-}
+            # Visar frågetexten i vitt så den syns tydligt
+            Write-Host $Question.Question -ForegroundColor White
+            Write-Host ""
 
-Write-Host ""
-Read-Host "Tryck Enter för att fortsätta"
+            # Visar alla svarsalternativ, till exempel:
+            # A. Koppla bort datorn från nätverket och kontakta IT
+            # B. Betala lösensumman direkt
+            # C. Starta om datorn flera gånger
+            foreach ($option in $Question.Options) {
+                Write-Host $option -ForegroundColor Gray
+            }
 
-return $result
-}
+            Write-Host ""
 
-function Invoke-IncidentChallenge {
+            # Läser och validerar spelarens svar via hjälpfunktionen
+            # Returnerar A, B eller C om giltigt - annars $null
+            $choice = Read-RansomwareChoice -Prompt "Ditt svar (A, B eller C)"
 
-    Write-Host ""
-    Write-Host "===============================" -ForegroundColor DarkCyan
-    Write-Host "TERMINALUTMANING: LARMCENTRALEN" -ForegroundColor Cyan
-    Write-Host "===============================" -ForegroundColor DarkCyan
-    Write-Host ""
+            # Ogiltigt svar ger inget tidstillägg, bara ett meddelande och loopen börjar om
+            if ($null -eq $choice) {
+                Show-FailureMessage "Ogiltig input. Skriv A, B eller C."
+                continue
+            }
 
-    Write-Host "SCENARIO:" -ForegroundColor Yellow
-    Write-Separator
-    
-    Write-Host "Skärmarna visar: 'Möjlig kapning av konto'. Filer saknas och konstiga meddelanden skickas." -ForegroundColor Gray
-    Write-Host "Du behöver välja första åtgärden innan skadan sprider sig." -ForegroundColor Gray
-    Write-Host ""
+            # Jämför spelarens svar med det korrekta svaret
+            if ($choice -eq $Question.Correct) {
 
-    Write-Separator
-    
-    Write-Host "ALTERNATIV:" -ForegroundColor Yellow
-    Write-Host "1. Rapportera snabbt till lärare eller IT och följ skolans rutin."
-    Write-Host "2. Vänta några dagar för att se om problemet försvinner."
-    Write-Host "3. Lägg ut användarnamnet och problemet offentligt i en chatt."
-    Write-Host ""
-
-    $choice = Read-ChallengeChoice -Prompt "Välj första åtgärd"
-
-$result = switch ($choice) {
-
-    1 {
-        $feedback = "RÄTT: Snabb rapportering minskar skadan och hjälper IT att agera."
-        Write-Host $feedback -ForegroundColor Green
-        New-ChallengeResult -Success $true -Points 10 -Feedback $feedback
-    }
-
-    2 {
-        $feedback = "FEL: Att vänta kan göra att problemet blir värre."
-        Write-Host $feedback -ForegroundColor Red
-        New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
-    }
-
-    3 {
-        $feedback = "FEL: Att sprida information kan skapa säkerhetsrisker."
-        Write-Host $feedback -ForegroundColor Red
-        New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
+                # Rätt svar - visar positiv feedback och avslutar loopen
+                Show-CorrectAnswerMessage -Message $Question.CorrectText
+                $answeredCorrectly = $true
+            }
+            else {
+                # Fel svar - lägger till 10 sekunders tidstillägg och visar förklaring
+                # Spelaren får försöka igen på samma fråga
+                Add-TimePenalty -GameState $GameState -Seconds 10
+                Show-WrongAnswerMessage -Message $Question.WrongText -PenaltySeconds 10
+            }
+        }
+        catch {
+            # Om något helt oväntat kraschar inne i frågeloopen
+            # visas ett felmeddelande och loopen börjar om istället för att spelet kraschar
+            Show-Error "Ett oväntat fel uppstod i frågan: $($_.Exception.Message)"
+            continue
+        }
     }
 }
 
-Write-Host ""
-Read-Host "Tryck Enter för att fortsätta"
 
-return $result
-}
-
-Export-ModuleMember -Function Invoke-PhishingChallenge, Invoke-PasswordChallenge, Invoke-MFAChallenge, Invoke-USBChallenge, Invoke-IncidentChallenge, Write-Separator
+# -----------------------------------------------------------------------------
+# EXPORT
+# Gör Invoke-RansomwareQuiz och Invoke-RansomwareQuestion tillgängliga
+# för GameEngine när modulen laddas med Import-Module.
+# Get-RansomwareQuestions och Read-RansomwareChoice exporteras inte
+# eftersom de bara används internt i den här filen.
+# -----------------------------------------------------------------------------
+Export-ModuleMember -Function Invoke-RansomwareQuiz, Invoke-RansomwareQuestion
