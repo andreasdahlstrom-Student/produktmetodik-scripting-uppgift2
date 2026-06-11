@@ -586,9 +586,17 @@ function Write-HackerMessage {
 # Meddelanden visas på ryska med svensk översättning och paus emellan.
 # Anropas från GameEngine efter menyvalet, innan Write-Instructions.
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# HACKER-INTRO
+# Spelar upp hela ransomware-storyn när spelaren trycker "Starta nytt spel".
+# -----------------------------------------------------------------------------
 function Write-HackerIntro {
     param(
-        [int]$PauseMs = 1500   # Paus mellan meddelanden i millisekunder (1500 = 1,5 sek)
+        # NYTT: Parametern för spelarens namn
+        [Parameter(Mandatory=$false)]
+        [string]$PlayerName = "Vännen",   # Fallback om namnet saknas
+        
+        [int]$PauseMs = 1500
     )
 
     try {
@@ -607,10 +615,12 @@ function Write-HackerIntro {
 
         Start-Sleep -Milliseconds $PauseMs
 
-        # Hackaren presenterar sig
+        # Hackaren använder spelarens namn
         Write-HackerMessage `
-            -Russian "Привет. Твой компьютер теперь мой." `
-            -Swedish "Hej. Din dator tillhör mig nu."
+            -Russian "Привет, $PlayerName. Твой компьютер теперь мой." `
+            -Swedish "Hej $PlayerName. Din dator tillhör mig nu."
+
+        Start-Sleep -Milliseconds $PauseMs
 
         Start-Sleep -Milliseconds $PauseMs
 
@@ -876,10 +886,6 @@ function Write-SplashScreen {
 # SCOREBOARD
 # Visar topplistan med bästa tider
 # Tar emot en array med score-objekt från SaveSystem
-# Varje objekt förväntas ha: Name, TotalSeconds, PenaltySeconds, Mistakes, Ransom
-# -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-# SCOREBOARD
 # Visar topplistan med spelarnas resultat, inklusive räddad lösensumma
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -928,6 +934,11 @@ function Write-Scoreboard {
             if ($null -eq $valName) { $valName = "Okänd" }
             if ($null -eq $valPen)  { $valPen = 0 }
             if ($null -eq $valMist) { $valMist = 0 }
+
+            # NYTT: Om strafftid saknas i datan, räkna ut den baserat på antal misstag (1 fel = 10s)
+            if ($valPen -eq 0 -and $valMist -gt 0) {
+                $valPen = ($valMist * 10)
+            }
 
             # Formaterar kolumnerna så att allt hamnar rakt under varandra
             $rank = $i.ToString().PadRight(4)
@@ -988,7 +999,17 @@ function Write-SavePrompt {
             $choice       = [int]$playerAnswer
 
             if ($choice -eq 1) {
-                return $true   # Spelaren vill spara
+                Write-Host ""
+                
+                # NYTT: Be om namn för sparfilen
+                $saveName = Read-Host "  Ange ditt namn för sparfilen"
+                
+                # Säkerhetskontroll om de bara trycker Enter utan att skriva namn
+                if ([string]::IsNullOrWhiteSpace($saveName)) {
+                    $saveName = "Okänd Spelare"
+                }
+                
+                return $saveName   # Returnerar namnet istället för bara $true
             }
             else {
                 return $false  # Spelaren vill inte spara
