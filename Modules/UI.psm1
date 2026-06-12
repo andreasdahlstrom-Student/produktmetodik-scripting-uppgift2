@@ -109,11 +109,6 @@ function Write-StatusBar {
 # -----------------------------------------------------------------------------
 # VINST
 # Visas när spelaren klarat alla rum
-# Visar totaltid inklusive straffsekunder
-# -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-# VINST
-# Visas när spelaren klarat alla rum
 # Visar totaltid, strafftid, antal misstag och pengar spelaren slapp betala
 # -----------------------------------------------------------------------------
 function Write-Victory {
@@ -586,13 +581,8 @@ function Write-HackerMessage {
 # Meddelanden visas på ryska med svensk översättning och paus emellan.
 # Anropas från GameEngine efter menyvalet, innan Write-Instructions.
 # -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-# HACKER-INTRO
-# Spelar upp hela ransomware-storyn när spelaren trycker "Starta nytt spel".
-# -----------------------------------------------------------------------------
 function Write-HackerIntro {
     param(
-        # NYTT: Parametern för spelarens namn
         [Parameter(Mandatory=$false)]
         [string]$PlayerName = "Vännen",   # Fallback om namnet saknas
         
@@ -619,8 +609,6 @@ function Write-HackerIntro {
         Write-HackerMessage `
             -Russian "Привет, $PlayerName. Твой компьютер теперь мой." `
             -Swedish "Hej $PlayerName. Din dator tillhör mig nu."
-
-        Start-Sleep -Milliseconds $PauseMs
 
         Start-Sleep -Milliseconds $PauseMs
 
@@ -654,6 +642,11 @@ function Write-HackerIntro {
         Write-Host "  =========================================" -ForegroundColor DarkRed
         Write-Host ""
 
+        # NYTT: Rensa tangentbordskön så spelet inte hoppar fram av misstag
+        while ([Console]::KeyAvailable) {
+            $null = [Console]::ReadKey($true)
+        }
+
         try {
             Read-Host "  Tryck Enter för att fortsätta"
         }
@@ -663,6 +656,82 @@ function Write-HackerIntro {
     }
     catch {
         Write-Host "  Kunde inte spela hacker-intro: $_" -ForegroundColor Red
+    }
+}
+
+# -----------------------------------------------------------------------------
+# HACKER-OUTRO
+# Spelar upp ett avslutande meddelande från hackaren när spelaren vinner.
+# Anropas från GameEngine precis innan Write-Victory visas.
+# -----------------------------------------------------------------------------
+function Write-HackerOutro {
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$PlayerName = "Vännen",   # Samma fallback som i introt
+        
+        [int]$PauseMs = 1500
+    )
+
+    try {
+        Clear-Host
+        Write-Host ""
+        Write-Host "  =========================================" -ForegroundColor DarkGreen
+        Write-Host "  [OK] DEKRYPTERING SLUTFÖRD" -ForegroundColor Green
+        Write-Host "  =========================================" -ForegroundColor DarkGreen
+        Write-Host ""
+        Start-Sleep -Milliseconds 800
+
+        # Hackaren är i chock
+        Write-HackerMessage `
+            -Russian "Что?! Как ты это сделал?!" `
+            -Swedish "Vad?! Hur gjorde du det där?!"
+
+        Start-Sleep -Milliseconds $PauseMs
+
+        # Hackaren inser sig besegrad
+        Write-HackerMessage `
+            -Russian "Невозможно, $PlayerName. Мой код был идеален." `
+            -Swedish "Omöjligt, $PlayerName. Min kod var perfekt."
+
+        Start-Sleep -Milliseconds $PauseMs
+
+        # Hackaren ger upp
+        Write-HackerMessage `
+            -Russian "Ладно, ты победил... на этот раз." `
+            -Swedish "Okej, du vann... för den här gången."
+
+        Start-Sleep -Milliseconds $PauseMs
+
+        # Slutklämmen om lösensumman
+        Write-HackerMessage `
+            -Russian "Система восстановлена. Оставь свои деньги себе." `
+            -Swedish "Systemet är återställt. Behåll dina pengar."
+
+        Start-Sleep -Milliseconds $PauseMs
+
+        # Hackaren loggar ut
+        Write-HackerMessage `
+            -Russian "Прощай." `
+            -Swedish "Farväl."
+
+        Write-Host ""
+        Write-Host "  =========================================" -ForegroundColor DarkGreen
+        Write-Host ""
+
+        # NYTT: Rensa tangentbordskön så spelet inte hoppar fram av misstag
+        while ([Console]::KeyAvailable) {
+            $null = [Console]::ReadKey($true)
+        }
+
+        try {
+            Read-Host "  Tryck Enter för att se ditt resultat"
+        }
+        catch {
+            Write-Host "  Kunde inte läsa input: $_" -ForegroundColor Red
+        }
+    }
+    catch {
+        Write-Host "  Kunde inte spela hacker-outro: $_" -ForegroundColor Red
     }
 }
 
@@ -707,13 +776,6 @@ function Write-RansomCounter {
 # -----------------------------------------------------------------------------
 # ANIMERAD SPLASH SCREEN
 # Visar ASCII-logotypen rad för rad med en fallande animation
-# Körs en gång när programmet startar, innan huvudmenyn visas
-# -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-# ANIMERAD SPLASH SCREEN
-# Fas 1: Matrix rain – gröna tecken kaskadar ner som i "The Matrix"
-# Fas 2: Dekryptering – ASCII-konsten avslöjas gradvis från glitch-tecken
-# Fas 3: Typewriter – titeln skrivs ut tecken för tecken
 # Körs en gång när programmet startar, innan huvudmenyn visas
 # -----------------------------------------------------------------------------
 function Write-SplashScreen {
@@ -888,10 +950,6 @@ function Write-SplashScreen {
 # Tar emot en array med score-objekt från SaveSystem
 # Visar topplistan med spelarnas resultat, inklusive räddad lösensumma
 # -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-# SCOREBOARD
-# Visar topplistan med spelarnas resultat, inklusive räddad lösensumma
-# -----------------------------------------------------------------------------
 function Write-Scoreboard {
     param(
         [Parameter(Mandatory=$false)]
@@ -1032,12 +1090,6 @@ function Write-SavePrompt {
 # Tar emot en array med sparade spel från SaveSystem
 # Returnerar index för valt spel, eller -1 om spelaren avbryter
 # -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-# LADDA-PROMPT
-# Visar en lista med sparade spel och låter spelaren välja vilket att ladda
-# Tar emot en array med sparade spel från SaveSystem
-# Returnerar index för valt spel, eller -1 om spelaren avbryter
-# -----------------------------------------------------------------------------
 function Write-LoadPrompt {
     param(
         [array]$SavedGames    # Array med sparade spel från SaveSystem
@@ -1134,4 +1186,5 @@ Export-ModuleMember -Function `
     Write-RoomIntro, Write-SuccessMessage, Write-FailureMessage, `
     Write-Question, Wait-Game, Write-Countdown, Write-Scoreboard, `
     Write-SavePrompt, Write-LoadPrompt, Write-SaveConfirmation, `
-    Write-LoadConfirmation, Write-HackerMessage, Write-HackerIntro
+    Write-LoadConfirmation, Write-HackerMessage, Write-HackerIntro, `
+    Write-HackerOutro
