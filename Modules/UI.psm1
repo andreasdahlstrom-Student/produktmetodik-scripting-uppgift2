@@ -1027,6 +1027,98 @@ function Write-SavePrompt {
 }
 
 # -----------------------------------------------------------------------------
+# LADDA-PROMPT
+# Visar en lista med sparade spel och låter spelaren välja vilket att ladda
+# Tar emot en array med sparade spel från SaveSystem
+# Returnerar index för valt spel, eller -1 om spelaren avbryter
+# -----------------------------------------------------------------------------
+function Write-LoadPrompt {
+    param(
+        [array]$SavedGames    # Array med sparade spel från SaveSystem
+    )
+
+    try {
+        Clear-Host
+        Write-Host ""
+        Write-Host "==================================================" -ForegroundColor DarkGreen
+        Write-Host "  LADDA SPEL" -ForegroundColor Green
+        Write-Host "==================================================" -ForegroundColor DarkGreen
+        Write-Host ""
+
+        # Om inga sparade spel finns
+        if ($null -eq $SavedGames -or $SavedGames.Count -eq 0) {
+            Write-Host "  Inga sparade spel hittades." -ForegroundColor Gray
+            Write-Host ""
+            Write-Host "==================================================" -ForegroundColor DarkGreen
+            Write-Host ""
+
+            try {
+                Read-Host "  Tryck Enter for att ga tillbaka"
+            }
+            catch {
+                Write-Host "  Kunde inte lasa input: $_" -ForegroundColor Red
+            }
+
+            # Returnerar -1 för att signalera att inget valdes
+            return -1
+        }
+
+        # Visar alla sparade spel numrerade
+        Write-Host "  Valj ett sparat spel:" -ForegroundColor Gray
+        Write-Host ""
+
+        for ($i = 0; $i -lt $SavedGames.Count; $i++) {
+            $save  = $SavedGames[$i]
+            $num   = $i + 1
+
+            # Formaterar sparad tid
+            $minutes       = [math]::Floor($save.ElapsedSeconds / 60)
+            $secs          = $save.ElapsedSeconds % 60
+            $timeFormatted = "$($minutes.ToString().PadLeft(2,'0')):$($secs.ToString().PadLeft(2,'0'))"
+
+            Write-Host "  [$num] $($save.PlayerName)" -ForegroundColor Green
+            Write-Host "       Rum: $($save.CompletedRooms) av 3   Tid: $timeFormatted   Straff: +$($save.PenaltySeconds)s" -ForegroundColor DarkGreen
+            Write-Host ""
+        }
+
+        Write-Host "  [0] Avbryt" -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "==================================================" -ForegroundColor DarkGreen
+        Write-Host ""
+
+        try {
+            $playerAnswer = Read-Host "  Ditt val"
+            $choice       = [int]$playerAnswer
+
+            # Spelaren valde att avbryta
+            if ($choice -eq 0) {
+                return -1
+            }
+
+            # Kontrollerar att valet är giltigt
+            if ($choice -lt 1 -or $choice -gt $SavedGames.Count) {
+                Write-Host ""
+                Write-Host "  Ogiltigt val! Forsok igen." -ForegroundColor Red
+                Write-Host ""
+                # Anropar sig själv rekursivt vid ogiltigt svar
+                return Write-LoadPrompt -SavedGames $SavedGames
+            }
+
+            # Returnerar index (0-baserat) för valt spel
+            return $choice - 1
+        }
+        catch {
+            Write-Host "  Ogiltigt svar! Ange endast en siffra." -ForegroundColor Red
+            return Write-LoadPrompt -SavedGames $SavedGames
+        }
+    }
+    catch {
+        Write-Host "  Kunde inte visa ladda-prompt: $_" -ForegroundColor Red
+        return -1
+    }
+}
+
+# -----------------------------------------------------------------------------
 # EXPORTERA FUNKTIONER
 # Gör alla funktioner tillgängliga när modulen importeras med Import-Module
 # -----------------------------------------------------------------------------
@@ -1035,5 +1127,5 @@ Export-ModuleMember -Function `
     Write-SplashScreen, Write-Title, Write-Menu, Write-Instructions, `
     Write-RoomIntro, Write-SuccessMessage, Write-FailureMessage, `
     Write-Question, Wait-Game, Write-Countdown, Write-Scoreboard, `
-    Write-SavePrompt, Write-SaveConfirmation, Write-LoadConfirmation, `
-    Write-HackerMessage, Write-HackerIntro
+    Write-SavePrompt, Write-LoadPrompt, Write-SaveConfirmation, `
+    Write-LoadConfirmation, Write-HackerMessage, Write-HackerIntro
