@@ -1032,6 +1032,12 @@ function Write-SavePrompt {
 # Tar emot en array med sparade spel från SaveSystem
 # Returnerar index för valt spel, eller -1 om spelaren avbryter
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# LADDA-PROMPT
+# Visar en lista med sparade spel och låter spelaren välja vilket att ladda
+# Tar emot en array med sparade spel från SaveSystem
+# Returnerar index för valt spel, eller -1 om spelaren avbryter
+# -----------------------------------------------------------------------------
 function Write-LoadPrompt {
     param(
         [array]$SavedGames    # Array med sparade spel från SaveSystem
@@ -1053,10 +1059,10 @@ function Write-LoadPrompt {
             Write-Host ""
 
             try {
-                Read-Host "  Tryck Enter for att ga tillbaka"
+                Read-Host "  Tryck Enter för att gå tillbaka"
             }
             catch {
-                Write-Host "  Kunde inte lasa input: $_" -ForegroundColor Red
+                Write-Host "  Kunde inte läsa input: $_" -ForegroundColor Red
             }
 
             # Returnerar -1 för att signalera att inget valdes
@@ -1064,7 +1070,7 @@ function Write-LoadPrompt {
         }
 
         # Visar alla sparade spel numrerade
-        Write-Host "  Valj ett sparat spel:" -ForegroundColor Gray
+        Write-Host "  Välj ett sparat spel:" -ForegroundColor Gray
         Write-Host ""
 
         for ($i = 0; $i -lt $SavedGames.Count; $i++) {
@@ -1098,7 +1104,7 @@ function Write-LoadPrompt {
             # Kontrollerar att valet är giltigt
             if ($choice -lt 1 -or $choice -gt $SavedGames.Count) {
                 Write-Host ""
-                Write-Host "  Ogiltigt val! Forsok igen." -ForegroundColor Red
+                Write-Host "  Ogiltigt val! Försök igen." -ForegroundColor Red
                 Write-Host ""
                 # Anropar sig själv rekursivt vid ogiltigt svar
                 return Write-LoadPrompt -SavedGames $SavedGames
