@@ -78,6 +78,8 @@ function Write-Timer {
     }
 }
 
+
+
 # -----------------------------------------------------------------------------
 # STATUSBAR
 # Visar tid, straffsekunder och rum-progress
@@ -105,6 +107,36 @@ function Write-StatusBar {
         Write-Host "  Kunde inte visa statusbar: $_" -ForegroundColor Red
     }
 }
+
+# -----------------------------------------------------------------------------
+# NYCKELINVENTERING
+# Visar visuell översikt över vilka nyckelbitar spelaren samlat
+# Anropas av GameEngine eller visas i statusbaren
+# -----------------------------------------------------------------------------
+function Write-KeyInventory {
+    param(
+        [Parameter(Mandatory)][int]$KeysFound,
+        [int]$TotalKeys = 3
+    )
+
+    try {
+        $slots = ""
+        for ($i = 1; $i -le $TotalKeys; $i++) {
+            if ($i -le $KeysFound) {
+                $slots += "[✓] Bit $i   "
+            }
+            else {
+                $slots += "[ ] Bit $i   "
+            }
+        }
+
+        Write-Host "  NYCKELBITAR:  $($slots.TrimEnd())" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "  Kunde inte visa nyckelinventering: $_" -ForegroundColor Red
+    }
+}
+
 
 # -----------------------------------------------------------------------------
 # VINST
@@ -166,6 +198,61 @@ function Write-Victory {
     }
     catch {
         Write-Host "  Kunde inte visa Victory: $_" -ForegroundColor Red
+    }
+}
+
+# -----------------------------------------------------------------------------
+# GAME OVER
+# Visas om spelet avslutas med förlust (t.ex. om tidsgräns läggs till senare)
+# Visar totaltid och anledning till att spelaren förlorade
+# -----------------------------------------------------------------------------
+function Write-GameOver {
+    param(
+        [Parameter(Mandatory)][int]$ElapsedSeconds,
+        [int]$PenaltySeconds = 0,
+        [string]$Reason = "Tiden är slut!"
+    )
+
+    try {
+        $totalSeconds   = $ElapsedSeconds + $PenaltySeconds
+        $minutes        = [math]::Floor($totalSeconds / 60)
+        $secs           = $totalSeconds % 60
+        $timeFormatted  = "$($minutes.ToString().PadLeft(2,'0')):$($secs.ToString().PadLeft(2,'0'))"
+
+        $lines = @(
+            "  [GAME OVER]",
+            "  $Reason",
+            "  Totaltid: $timeFormatted"
+        )
+
+        $width = ($lines | Measure-Object -Property Length -Maximum).Maximum + 4
+        $line  = "=" * $width
+
+        Clear-Host
+        Write-Host ""
+        Write-Host $line -ForegroundColor DarkRed
+        Write-Host "  [GAME OVER]".PadRight($width) -ForegroundColor Red
+        Write-Host $line -ForegroundColor DarkRed
+        Write-Host ""
+        Write-Host "  $Reason".PadRight($width) -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "  Totaltid: $timeFormatted".PadRight($width) -ForegroundColor Red
+        Write-Host $line -ForegroundColor DarkRed
+        Write-Host ""
+
+        while ([Console]::KeyAvailable) {
+            $null = [Console]::ReadKey($true)
+        }
+
+        try {
+            Read-Host "  Tryck Enter för att gå till huvudmenyn"
+        }
+        catch {
+            Write-Host "  Kunde inte läsa input: $_" -ForegroundColor Red
+        }
+    }
+    catch {
+        Write-Host "  Kunde inte visa Game Over: $_" -ForegroundColor Red
     }
 }
 
@@ -495,6 +582,43 @@ function Wait-Game {
 }
 
 # -----------------------------------------------------------------------------
+# BEKRÄFTA AVSLUT
+# Frågar spelaren om de verkligen vill avsluta pågående spel
+# Returnerar $true om spelaren bekräftar, annars $false
+# Anropas av GameEngine när spelaren väljer "Avsluta" i spelmenyn
+# -----------------------------------------------------------------------------
+function Write-ConfirmQuit {
+    try {
+        Write-Host ""
+        Write-Host "==================================================" -ForegroundColor DarkRed
+        Write-Host "  AVSLUTA SPEL" -ForegroundColor Red
+        Write-Host "==================================================" -ForegroundColor DarkRed
+        Write-Host ""
+        Write-Host "  Vill du verkligen avsluta?" -ForegroundColor Gray
+        Write-Host "  Osparat framsteg går förlorat." -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "  [1] Ja, avsluta" -ForegroundColor Red
+        Write-Host "  [2] Nej, fortsätt spela" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "==================================================" -ForegroundColor DarkRed
+        Write-Host ""
+
+        try {
+            $playerAnswer = Read-Host "  Ditt val"
+            $choice       = [int]$playerAnswer
+            return ($choice -eq 1)
+        }
+        catch {
+            return $false
+        }
+    }
+    catch {
+        Write-Host "  Kunde inte visa avsluta-prompt: $_" -ForegroundColor Red
+        return $false
+    }
+}
+
+# -----------------------------------------------------------------------------
 # NEDRÄKNING
 # Dramatisk nedräkning innan ett rum startar
 # -----------------------------------------------------------------------------
@@ -551,6 +675,43 @@ function Write-LoadConfirmation {
     }
     catch {
         Write-Host "  Kunde inte visa laddbekräftelse: $_" -ForegroundColor Red
+    }
+}
+
+# -----------------------------------------------------------------------------
+# NOTIS
+# Lättviktig notis för korta systemmeddelanden utan att fylla hela skärmen
+# Type-parametern styr färg: Info (Cyan), Success (Green), Warning (Yellow), Error (Red)
+# Används t.ex. för autosave-bekräftelse eller nätverksfel
+# -----------------------------------------------------------------------------
+function Write-Notification {
+    param(
+        [Parameter(Mandatory)][string]$Message,
+        [ValidateSet("Info","Success","Warning","Error")]
+        [string]$Type = "Info"
+    )
+
+    try {
+        $color = switch ($Type) {
+            "Success" { "Green" }
+            "Warning" { "Yellow" }
+            "Error"   { "Red" }
+            default   { "Cyan" }
+        }
+
+        $prefix = switch ($Type) {
+            "Success" { "[OK]" }
+            "Warning" { "[!]" }
+            "Error"   { "[FEL]" }
+            default   { "[INFO]" }
+        }
+
+        Write-Host ""
+        Write-Host "  $prefix $Message" -ForegroundColor $color
+        Write-Host ""
+    }
+    catch {
+        Write-Host "  Kunde inte visa notis: $_" -ForegroundColor Red
     }
 }
 
@@ -1176,15 +1337,111 @@ function Write-LoadPrompt {
     }
 }
 
+
+
+# -----------------------------------------------------------------------------
+# TA BORT SPARAT SPEL
+# Visar lista med sparade spel och låter spelaren välja ett att radera
+# Returnerar index för valt spel, eller -1 om spelaren avbryter
+# Anropas av GameEngine/SaveSystem när spelaren väljer "Radera sparat spel"
+# -----------------------------------------------------------------------------
+function Write-DeleteSavePrompt {
+    param(
+        [array]$SavedGames
+    )
+
+    try {
+        Clear-Host
+        Write-Host ""
+        Write-Host "==================================================" -ForegroundColor DarkRed
+        Write-Host "  RADERA SPARAT SPEL" -ForegroundColor Red
+        Write-Host "==================================================" -ForegroundColor DarkRed
+        Write-Host ""
+
+        if ($null -eq $SavedGames -or $SavedGames.Count -eq 0) {
+            Write-Host "  Inga sparade spel hittades." -ForegroundColor Gray
+            Write-Host ""
+            Write-Host "==================================================" -ForegroundColor DarkRed
+            Write-Host ""
+
+            try {
+                Read-Host "  Tryck Enter för att gå tillbaka"
+            }
+            catch {
+                Write-Host "  Kunde inte läsa input: $_" -ForegroundColor Red
+            }
+
+            return -1
+        }
+
+        Write-Host "  Välj ett sparat spel att radera:" -ForegroundColor Gray
+        Write-Host ""
+
+        for ($i = 0; $i -lt $SavedGames.Count; $i++) {
+            $save          = $SavedGames[$i]
+            $num           = $i + 1
+            $minutes       = [math]::Floor($save.ElapsedSeconds / 60)
+            $secs          = $save.ElapsedSeconds % 60
+            $timeFormatted = "$($minutes.ToString().PadLeft(2,'0')):$($secs.ToString().PadLeft(2,'0'))"
+
+            Write-Host "  [$num] $($save.PlayerName)" -ForegroundColor Red
+            Write-Host "       Rum: $($save.CompletedRooms) av 3   Tid: $timeFormatted" -ForegroundColor DarkRed
+            Write-Host ""
+        }
+
+        Write-Host "  [0] Avbryt" -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "==================================================" -ForegroundColor DarkRed
+        Write-Host ""
+
+        try {
+            $playerAnswer = Read-Host "  Ditt val"
+            $choice       = [int]$playerAnswer
+
+            if ($choice -eq 0) { return -1 }
+
+            if ($choice -lt 1 -or $choice -gt $SavedGames.Count) {
+                Write-Host ""
+                Write-Host "  Ogiltigt val! Försök igen." -ForegroundColor Red
+                Write-Host ""
+                return Write-DeleteSavePrompt -SavedGames $SavedGames
+            }
+
+            # Bekräftelse innan radering
+            Write-Host ""
+            Write-Host "  Är du säker på att du vill radera '$($SavedGames[$choice - 1].PlayerName)'?" -ForegroundColor Yellow
+            Write-Host "  [1] Ja, radera   [2] Nej, avbryt" -ForegroundColor Gray
+            Write-Host ""
+
+            $confirm = Read-Host "  Ditt val"
+            if ([int]$confirm -eq 1) {
+                return $choice - 1
+            }
+            else {
+                return -1
+            }
+        }
+        catch {
+            Write-Host "  Ogiltigt svar! Ange endast en siffra." -ForegroundColor Red
+            return Write-DeleteSavePrompt -SavedGames $SavedGames
+        }
+    }
+    catch {
+        Write-Host "  Kunde inte visa radera-prompt: $_" -ForegroundColor Red
+        return -1
+    }
+}
+
 # -----------------------------------------------------------------------------
 # EXPORTERA FUNKTIONER
 # Gör alla funktioner tillgängliga när modulen importeras med Import-Module
 # -----------------------------------------------------------------------------
 Export-ModuleMember -Function `
-    Write-Timer, Write-RansomCounter, Write-StatusBar, Write-Victory, `
-    Write-SplashScreen, Write-Title, Write-Menu, Write-Instructions, `
-    Write-RoomIntro, Write-SuccessMessage, Write-FailureMessage, `
-    Write-Question, Wait-Game, Write-Countdown, Write-Scoreboard, `
-    Write-SavePrompt, Write-LoadPrompt, Write-SaveConfirmation, `
-    Write-LoadConfirmation, Write-HackerMessage, Write-HackerIntro, `
-    Write-HackerOutro
+    Write-Timer, Write-RansomCounter, Write-StatusBar, Write-KeyInventory, `
+    Write-Victory, Write-GameOver, Write-SplashScreen, Write-Title, `
+    Write-Menu, Write-Instructions, Write-RoomIntro, `
+    Write-SuccessMessage, Write-FailureMessage, Write-Question, `
+    Wait-Game, Write-ConfirmQuit, Write-Countdown, Write-Scoreboard, `
+    Write-Notification, Write-SavePrompt, Write-LoadPrompt, `
+    Write-DeleteSavePrompt, Write-SaveConfirmation, Write-LoadConfirmation, `
+    Write-HackerMessage, Write-HackerIntro, Write-HackerOutro
