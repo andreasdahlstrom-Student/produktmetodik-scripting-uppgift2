@@ -1,106 +1,79 @@
-# =============================================================================
+﻿# =============================================================================
 # SecurityChallenges.psm1
 # =============================================================================
 # Ansvar:
 #   Den här modulen ansvarar för quizlogiken i spelet.
-#   Den innehåller frågorna, läser spelarens svar och avgör om svaret är rätt.
+#   Frågorna laddas från data/questions.json, så de kan ändras eller
+#   utökas utan att koden behöver röras.
+#   Frågornas ordning och svarsalternativens ordning slumpas varje gång
+#   quizet körs, så att spelet inte går att lösa genom att memorera
+#   bokstäver eller positioner.
+#   Modulen läser spelarens svar och avgör om svaret är rätt.
 #
 # Funktioner som GameEngine anropar utifrån:
 #   Invoke-RansomwareQuiz     - kör hela quizet med alla frågor
 #   Invoke-RansomwareQuestion - hanterar en enskild fråga
 #
 # Interna hjälpfunktioner som bara används i den här filen:
-#   Get-RansomwareQuestions   - returnerar alla frågor som objekt
+#   Get-RansomwareQuestions   - laddar frågorna från questions.json
+#   Get-ShuffledQuestion      - slumpar ordningen på en frågas alternativ
 #   Read-RansomwareChoice     - läser och validerar spelarens svar
 # =============================================================================
 
 
 # -----------------------------------------------------------------------------
 # GET-RANSOMWAREQUESTIONS
-# Returnerar alla ransomware-frågor som en lista av objekt.
-# Varje objekt innehåller frågetext, svarsalternativ, rätt svar och feedback.
+# Laddar alla ransomware-frågor från data/questions.json och returnerar dem
+# som en lista av objekt. Varje objekt innehåller frågetext, svarsalternativ,
+# rätt svar och feedback.
 # -----------------------------------------------------------------------------
 function Get-RansomwareQuestions {
-    return @(
-        # Fråga 1: Vad är ransomware?
-        [PSCustomObject]@{
-            Number      = 1
-            Question    = "Vad är ransomware?"
-            Options     = @(
-                "A. Ett program som förbättrar datorns prestanda",
-                "B. Skadlig kod som krypterar filer och kräver lösensumma",
-                "C. Ett vanligt antivirusprogram"
-            )
-            Correct     = "B"
-            # Texten som visas när spelaren svarar rätt
-            CorrectText = "Rätt. Ransomware låser eller krypterar filer och försöker pressa offret på pengar."
-            # Texten som visas när spelaren svarar fel
-            WrongText   = "Fel. Ransomware är skadlig kod som krypterar filer och kräver lösensumma."
+    try {
+        # $PSScriptRoot pekar på modules-mappen. Projektroten ligger en nivå upp.
+        $projectRoot = Split-Path -Path $PSScriptRoot -Parent
+
+        # Bygger sökvägen till questions.json i data-mappen.
+        $path = Join-Path -Path $projectRoot -ChildPath "data\questions.json"
+
+        # Kontrollerar att filen faktiskt finns innan vi försöker läsa den.
+        if (-not (Test-Path -Path $path -PathType Leaf)) {
+            throw "Frågefilen hittades inte: $path"
         }
 
-        # Fråga 2: Vad gör man först vid misstänkt ransomware?
-        [PSCustomObject]@{
-            Number      = 2
-            Question    = "Vad är det bästa första steget om du misstänker ransomware?"
-            Options     = @(
-                "A. Koppla bort datorn från nätverket och kontakta IT",
-                "B. Betala lösensumman direkt",
-                "C. Starta om datorn flera gånger"
-            )
-            Correct     = "A"
-            CorrectText = "Rätt. Att koppla bort datorn kan bromsa spridning, och IT kan hjälpa till på rätt sätt."
-            WrongText   = "Fel. Första steget är att isolera datorn från nätverket och kontakta IT eller ansvarig vuxen."
+        # Läser hela JSON-filen som en textsträng.
+        # -Raw läser in hela filen som en enda sträng.
+        # -Encoding UTF8 säkerställer att å, ä och ö visas rätt.
+        $json = Get-Content -Path $path -Raw -Encoding UTF8 -ErrorAction Stop
+
+        # Kontrollerar att filen inte är tom.
+        if ([string]::IsNullOrWhiteSpace($json)) {
+            throw "Frågefilen är tom: $path"
         }
 
-        # Fråga 3: Vilket skydd minskar risken att förlora data?
-        [PSCustomObject]@{
-            Number      = 3
-            Question    = "Vilket skydd minskar risken att förlora data vid ransomware?"
-            Options     = @(
-                "A. Regelbundna säkerhetskopior",
-                "B. Att använda samma lösenord överallt",
-                "C. Att ignorera säkerhetsuppdateringar"
-            )
-            Correct     = "A"
-            CorrectText = "Rätt. Säkerhetskopior gör det möjligt att återställa filer utan att betala angriparen."
-            WrongText   = "Fel. Regelbundna säkerhetskopior är ett av de viktigaste skydden mot dataförlust."
+        # Omvandlar JSON-texten till PowerShell-objekt.
+        # Efter det här steget kan koden komma åt fälten med punktnotation,
+        # till exempel $question.Question eller $question.Correct.
+        $questions = $json | ConvertFrom-Json -ErrorAction Stop
+
+        # Kontrollerar att vi faktiskt fick tillbaka minst en fråga.
+        if ($null -eq $questions -or $questions.Count -eq 0) {
+            throw "Inga frågor hittades i filen: $path"
         }
 
-        # Fråga 4: Hur sprids ransomware?
-        [PSCustomObject]@{
-            Number      = 4
-            Question    = "Hur sprids ransomware ofta?"
-            Options     = @(
-                "A. Genom phishingmejl och skadliga bilagor",
-                "B. Genom att skärmen är för ljus",
-                "C. Genom att datorn är avstängd"
-            )
-            Correct     = "A"
-            CorrectText = "Rätt. Phishingmejl, falska länkar och skadliga bilagor är vanliga vägar in."
-            WrongText   = "Fel. Ransomware sprids ofta via phishingmejl, skadliga bilagor och osäkra länkar."
-        }
-
-        # Fråga 5: Varför ska man vara försiktig med okända bilagor?
-        [PSCustomObject]@{
-            Number      = 5
-            Question    = "Varför bör man vara försiktig med okända bilagor?"
-            Options     = @(
-                "A. De kan innehålla skadlig kod",
-                "B. De gör alltid datorn snabbare",
-                "C. De uppdaterar automatiskt antivirus"
-            )
-            Correct     = "A"
-            CorrectText = "Rätt. Okända bilagor kan innehålla skadlig kod och ska kontrolleras innan de öppnas."
-            WrongText   = "Fel. Okända bilagor kan innehålla skadlig kod, även om mejlet ser trovärdigt ut."
-        }
-    )
+        return $questions
+    }
+    catch {
+        # Skickar vidare felet med ett tydligt meddelande.
+        # Invoke-RansomwareQuiz fångar felet och avbryter quizet på ett kontrollerat sätt.
+        throw "Kunde inte ladda frågorna: $($_.Exception.Message)"
+    }
 }
 
 
 # -----------------------------------------------------------------------------
 # READ-RANSOMWARECHOICE
 # Läser spelarens svar från terminalen och returnerar det som en bokstav.
-# Accepterar både bokstäver (A, B, C) och siffror (1, 2, 3) (LOL)
+# Accepterar endast bokstäverna A, B eller C.
 # Returnerar $null om svaret är ogiltigt så att frågan kan visas igen.
 # -----------------------------------------------------------------------------
 function Read-RansomwareChoice {
@@ -126,13 +99,9 @@ function Read-RansomwareChoice {
         # Tar bort mellanslag och gör om till versaler så att "a" och "A" behandlas lika
         $choice = $choice.Trim().ToUpper()
 
-        # Översätter spelarens svar till en bokstav
-        # Siffror 1, 2, 3 accepteras som alternativ till A, B, C
+        # Accepterar endast A, B eller C
         # Allt annat returneras som $null vilket betyder ogiltigt svar
         switch ($choice) {
-            "1" { return "A" }
-            "2" { return "B" }
-            "3" { return "C" }
             "A" { return "A" }
             "B" { return "B" }
             "C" { return "C" }
@@ -149,6 +118,61 @@ function Read-RansomwareChoice {
 
 
 # -----------------------------------------------------------------------------
+# GET-SHUFFLEDQUESTION
+# Tar emot en fråga och returnerar en kopia där svarsalternativen ligger
+# i slumpad ordning. Bokstäverna A, B och C skrivs om så att de matchar
+# de nya positionerna, och Correct uppdateras så att den fortfarande
+# pekar på rätt alternativ.
+# -----------------------------------------------------------------------------
+function Get-ShuffledQuestion {
+    param(
+        # Den ursprungliga frågan, med Options i den ordning de står i questions.json
+        [Parameter(Mandatory)]
+        [object]$Question
+    )
+
+    # Bokstäverna som ska stå framför varje alternativ, i ordning
+    $letters = @("A", "B", "C")
+
+    # Tar bort "A. ", "B. " och "C. " från varje alternativ så att vi har kvar
+    # bara den rena texten. Annars hade den gamla bokstaven följt med
+    # och hamnat på fel plats efter omslumpningen.
+    $plainOptions = foreach ($option in $Question.Options) {
+        $option -replace '^[ABC]\.\s*', ''
+    }
+
+    # Hittar vilken ren text som var det rätta svaret innan omslumpningen,
+    # genom att slå upp Correct-bokstaven mot den ursprungliga listan.
+    $originalIndex = $letters.IndexOf($Question.Correct)
+    $correctText = $plainOptions[$originalIndex]
+
+    # Slumpar ordningen på de rena alternativen.
+    $shuffledOptions = $plainOptions | Get-Random -Count $plainOptions.Count
+
+    # Sätter tillbaka A, B och C framför alternativen i den nya ordningen.
+    $newOptions = for ($i = 0; $i -lt $shuffledOptions.Count; $i++) {
+        "$($letters[$i]). $($shuffledOptions[$i])"
+    }
+
+    # Hittar den nya bokstaven för det rätta svaret genom att leta upp
+    # var den korrekta texten hamnade efter omslumpningen.
+    $newCorrectIndex = [array]::IndexOf($shuffledOptions, $correctText)
+    $newCorrect = $letters[$newCorrectIndex]
+
+    # Returnerar en ny fråga med samma text och feedback,
+    # men med omslumpade alternativ och uppdaterat rätt svar.
+    return [PSCustomObject]@{
+        Number      = $Question.Number
+        Question    = $Question.Question
+        Options     = $newOptions
+        Correct     = $newCorrect
+        CorrectText = $Question.CorrectText
+        WrongText   = $Question.WrongText
+    }
+}
+
+
+# -----------------------------------------------------------------------------
 # INVOKE-RANSOMWAREQUIZ
 # Kör hela quizet från första till sista frågan.
 # Hämtar frågorna, kör dem en i taget och returnerar ett slutresultat.
@@ -160,14 +184,29 @@ function Invoke-RansomwareQuiz {
         [object]$GameState
     )
 
-    # Hämtar alla frågor från hjälpfunktionen
-    $questions = Get-RansomwareQuestions
+    # Hämtar alla frågor från hjälpfunktionen, som laddar dem från questions.json.
+    # Om filen saknas eller är trasig kastas ett fel som fångas här,
+    # och felet skickas vidare till GameEngine via Start-NewGame.
+    try {
+        $questions = Get-RansomwareQuestions
+    }
+    catch {
+        throw "Quizet kunde inte starta: $($_.Exception.Message)"
+    }
 
-    # Går igenom varje fråga i ordning
+    # Slumpar ordningen på frågorna så att de inte kommer i samma ordning varje gång.
+    # Get-Random -Count $questions.Count returnerar alla element men i slumpad ordning.
+    $questions = $questions | Get-Random -Count $questions.Count
+
+    # Går igenom varje fråga i den slumpade ordningen
     foreach ($question in $questions) {
 
+        # Slumpar även ordningen på svarsalternativen för den här frågan.
+        # Annars hade rätt svar alltid legat på samma plats i listan.
+        $shuffledQuestion = Get-ShuffledQuestion -Question $question
+
         # Kör en enskild fråga och väntar tills spelaren svarar rätt
-        Invoke-RansomwareQuestion -Question $question -GameState $GameState -TotalQuestions $questions.Count
+        Invoke-RansomwareQuestion -Question $shuffledQuestion -GameState $GameState -TotalQuestions $questions.Count
 
         # Räknar upp antalet avklarade frågor efter varje godkänt svar
         $GameState.completedQuestions++
