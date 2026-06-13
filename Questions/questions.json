@@ -1,0 +1,62 @@
+[
+  {
+    "Number": 1,
+    "Question": "Vad är ransomware?",
+    "Options": [
+      "A. Skadlig kod som krypterar filer och kräver lösensumma",
+      "B. Ett program som förbättrar datorns prestanda",
+      "C. Ett vanligt antivirusprogram"
+    ],
+    "Correct": "A",
+    "CorrectText": "Rätt. Ransomware låser eller krypterar filer och försöker pressa offret på pengar.",
+    "WrongText": "Fel. Ransomware är skadlig kod som krypterar filer och kräver lösensumma."
+  },
+  {
+    "Number": 2,
+    "Question": "Vad är det bästa första steget om du misstänker ransomware?",
+    "Options": [
+      "A. Betala lösensumman direkt",
+      "B. Koppla bort datorn från nätverket och kontakta IT",
+      "C. Starta om datorn flera gånger"
+    ],
+    "Correct": "B",
+    "CorrectText": "Rätt. Att koppla bort datorn kan bromsa spridning, och IT kan hjälpa till på rätt sätt.",
+    "WrongText": "Fel. Första steget är att isolera datorn från nätverket och kontakta IT eller ansvarig vuxen."
+  },
+  {
+    "Number": 3,
+    "Question": "Vilket skydd minskar risken att förlora data vid ransomware?",
+    "Options": [
+      "A. Att använda samma lösenord överallt",
+      "B. Att ignorera säkerhetsuppdateringar",
+      "C. Regelbundna säkerhetskopior"
+    ],
+    "Correct": "C",
+    "CorrectText": "Rätt. Säkerhetskopior gör det möjligt att återställa filer utan att betala angriparen.",
+    "WrongText": "Fel. Regelbundna säkerhetskopior är ett av de viktigaste skydden mot dataförlust."
+  },
+  {
+    "Number": 4,
+    "Question": "Hur sprids ransomware ofta?",
+    "Options": [
+      "A. Genom att skärmen är för ljus",
+      "B. Genom phishingmejl och skadliga bilagor",
+      "C. Genom att datorn är avstängd"
+    ],
+    "Correct": "B",
+    "CorrectText": "Rätt. Phishingmejl, falska länkar och skadliga bilagor är vanliga vägar in.",
+    "WrongText": "Fel. Ransomware sprids ofta via phishingmejl, skadliga bilagor och osäkra länkar."
+  },
+  {
+    "Number": 5,
+    "Question": "Varför bör man vara försiktig med okända bilagor?",
+    "Options": [
+      "A. De gör alltid datorn snabbare",
+      "B. De uppdaterar automatiskt antivirus",
+      "C. De kan innehålla skadlig kod"
+    ],
+    "Correct": "C",
+    "CorrectText": "Rätt. Okända bilagor kan innehålla skadlig kod och ska kontrolleras innan de öppnas.",
+    "WrongText": "Fel. Okända bilagor kan innehålla skadlig kod, även om mejlet ser trovärdigt ut."
+  }
+]
