@@ -1,216 +1,344 @@
-# Den här modulen innehåller spelets säkerhetsutmaningar.
+# GameEngine.psm1
+# Spelmotorn styr huvudmeny, timer, tidstillägg och slutresultat.
 
-# Skapar ett standardiserat resultatobjekt för alla utmaningar oavsett vilken utmaning som kördes.
-function New-ChallengeResult {
+function New-RansomwareGameState {
     param(
-        # Anger om spelaren klarade utmaningen eller inte.
         [Parameter(Mandatory)]
-        [bool]$Success,
-
-        # Antal poäng spelaren får för sitt val.
-        [Parameter(Mandatory)]
-        [int]$Points,
-
-        # Text som förklarar varför svaret var rätt eller fel.
-        [Parameter(Mandatory)]
-        [string]$Feedback
+        [string]$PlayerName
     )
 
-    # Returnerar ett eget objekt med resultatet från utmaningen.
-    # Detta gör det lättare för spelmotorn att läsa av resultatet senare.
+    # Skapar ett nytt spelobjekt där all information om spelet sparas.
+    # Här sparas till exempel spelarens namn, tid, antal fel och vilken fråga spelaren är på.
     return [PSCustomObject]@{
-        Success  = $Success
-        Points   = $Points
-        Feedback = $Feedback
+        playerName           = $PlayerName
+        currentQuestionIndex = 0
+        actualStartTime      = $null
+        startTime            = $null
+        endTime              = $null
+        elapsedSeconds       = 0
+        actualSeconds        = 0
+        wrongAnswers         = 0
+        penaltySeconds       = 0
+        totalSeconds         = 0
+        completedQuestions   = 0
+        isCompleted          = $false
+        lastSaved            = ""
     }
 }
 
-# Läser in spelarens val från terminalen.
-# Funktionen används av alla utmaningar för att slippa upprepa samma kod.
-function Read-ChallengeChoice {
+function Start-SecurityEscapeRoom {
     param(
-        # Texten som visas när spelaren ska skriva sitt val.
+        [string]$ProjectRoot = (Split-Path -Path $PSScriptRoot -Parent)
+    )
+
+    # Startar spelet med det gamla funktionsnamnet.
+    # Detta finns kvar så äldre filer fortfarande fungerar.
+    Start-RansomwareEscapeRoom -ProjectRoot $ProjectRoot
+}
+
+function Start-RansomwareEscapeRoom {
+    param(
+        [string]$ProjectRoot = (Split-Path -Path $PSScriptRoot -Parent)
+    )
+
+    # Bestämmer var sparfilen ska ligga.
+    $savePath = Join-Path -Path $ProjectRoot -ChildPath "data\savegame.json"
+
+    # Så länge detta är sant visas huvudmenyn.
+    $isRunning = $true
+
+    while ($isRunning) {
+        # Visar introduktionen till spelet.
+        Show-RansomwareIntro
+
+        # Visar huvudmenyn med olika val.
+        Show-Menu -Options @(
+            "1. Nytt spel",
+            "2. Visa scoreboard",
+            "3. Fortsätt sparat spel",
+            "4. Avsluta"
+        )
+
+        # Läser in spelarens val.
+        $choice = Read-Host "Välj ett alternativ"
+
+        switch ($choice) {
+            "1" {
+                # Startar ett nytt spel.
+                Start-NewGame -SavePath $savePath
+            }
+            "2" {
+                # Visar scoreboarden.
+                Show-ScoreboardMenu
+            }
+            "3" {
+                # Försöker fortsätta från ett sparat spel.
+                Start-SavedGame -SavePath $savePath
+            }
+            "4" {
+                # Avslutar spelet och lämnar menyn.
+                Show-Message "Du stänger terminalen. Håll dig säker där ute." "Cyan"
+                $isRunning = $false
+            }
+            default {
+                # Visas om spelaren skriver något annat än 1, 2, 3 eller 4.
+                Show-FailureMessage "Ogiltigt val. Skriv 1, 2, 3 eller 4."
+                Pause-Game
+            }
+        }
+    }
+}
+
+function Show-ScoreboardMenu {
+    try {
+        # Läser in scoreboarden och sorterar resultaten.
+        # Bäst tid kommer först, och vid samma tid jämförs antal fel.
+        $results = @(Load-Scoreboard | Sort-Object -Property @{ Expression = { [int]$_.totalTimeSeconds } }, @{ Expression = { [int]$_.wrongAnswers } })
+
+        # Visar resultaten på skärmen.
+        Show-Scoreboard -Results $results
+        Pause-Game
+    }
+    catch {
+        # Visar felmeddelande om scoreboarden inte kunde visas.
+        Show-Error "Kunde inte visa scoreboard: $($_.Exception.Message)"
+        Pause-Game
+    }
+}
+
+function Start-NewGame {
+    param(
         [Parameter(Mandatory)]
-        [string]$Prompt
+        [string]$SavePath
     )
 
     try {
-        # Read-Host väntar på att spelaren skriver något i terminalen.
-        $choice = Read-Host $Prompt
+        # Frågar spelaren efter namn.
+        $playerName = Read-Host "Skriv ditt namn"
 
-        # Kontrollerar att spelaren bara har valt ett av de tillåtna alternativen.
-        # Om spelaren skriver något annat än 1, 2 eller 3 returneras $null.
-        if ($choice -notin @("1", "2", "3")) {
-            Write-Host "Terminalen blinkar rött: välj 1, 2 eller 3." -ForegroundColor Yellow
-            return $null
+        # Om spelaren inte skriver något används standardnamnet "Elev".
+        if ([string]::IsNullOrWhiteSpace($playerName)) {
+            $playerName = "Elev"
         }
 
-        # Om valet är giltigt omvandlas texten till ett heltal.
-        # Det gör det enklare att jämföra valet senare i koden.
-        return [int]$choice
+        # Skapar ett nytt spel och startar timern.
+        $gameState = New-RansomwareGameState -PlayerName $playerName
+        $gameState.actualStartTime = Get-Date
+        $gameState.startTime = $gameState.actualStartTime
+
+        # Sparar spelet direkt så det går att fortsätta senare.
+        Save-Game -Path $SavePath -SaveData $gameState
+
+        # Visar startmeddelande för spelaren.
+        Show-HackerMessage -PlayerName $playerName
+        Pause-Game
+
+        # Startar quizet.
+        Invoke-RansomwareQuiz -GameState $gameState -SavePath $SavePath | Out-Null
+
+        # När quizet är klart visas slutresultatet.
+        Show-FinalResult -GameState $gameState -SavePath $SavePath
     }
     catch {
-        # Om något oväntat går fel när input läses in hamnar vi här.
-        # Spelet kraschar inte, utan spelaren får ett felmeddelande.
-        Write-Host "Terminalen kunde inte läsa ditt svar. Försök igen." -ForegroundColor Red
-        return $null
+        # Visar fel om spelet inte kunde startas.
+        Show-Error "Kunde inte starta ransomware-spelet: $($_.Exception.Message)"
     }
 }
 
-# Utmaning 1: Phishing.
-# Spelaren får ett misstänkt mejl och ska välja det säkraste sättet att agera.
-function Invoke-PhishingChallenge {
-    Write-Host ""
-    Write-Host "Terminalutmaning: Inkorgen" -ForegroundColor Cyan
-    Write-Host "Ett nytt mejl fyller skärmen: 'DITT KONTO STÄNGS OM 10 MINUTER'."
-    Write-Host "Avsändaren liknar skolans adress, men några bokstäver är fel. En stor knapp blinkar."
-    Write-Host ""
-    Write-Host "1. Klicka på knappen direkt för att rädda kontot."
-    Write-Host "2. Kontrollera avsändaren och gå själv till skolans riktiga inloggningssida."
-    Write-Host "3. Svara på mejlet med ditt användarnamn och lösenord."
+function Start-SavedGame {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SavePath
+    )
 
-    # Hämtar spelarens val med den gemensamma input-funktionen.
-    $choice = Read-ChallengeChoice -Prompt "Välj säker åtgärd"
+    try {
+        # Läser in sparat spel från fil.
+        $gameState = Load-Game -Path $SavePath
 
-    # Om spelaren skrev ett ogiltigt svar returneras ett misslyckat resultat.
-    if ($null -eq $choice) {
-        return New-ChallengeResult -Success $false -Points 0 -Feedback "Terminalen accepterar bara alternativen 1, 2 eller 3."
+        # Hämtar hur många frågor spelet har totalt.
+        $totalQuestions = (Get-RansomwareQuestions).Count
+
+        # Kontrollerar om det finns ett giltigt sparat spel.
+        # Om spelet redan är klart eller saknar namn går det inte att fortsätta.
+        if ($null -eq $gameState -or [string]::IsNullOrWhiteSpace($gameState.playerName) -or $gameState.isCompleted -or [int]$gameState.currentQuestionIndex -ge $totalQuestions) {
+            Show-FailureMessage "Inget sparat spel hittades."
+            Wait-ForReturnToMenu
+            return
+        }
+
+        # Hämtar tidigare speltid.
+        $elapsedSeconds = [int]$gameState.elapsedSeconds
+
+        # Om elapsedSeconds saknas men actualSeconds finns används actualSeconds istället.
+        if ($elapsedSeconds -eq 0 -and [int]$gameState.actualSeconds -gt 0) {
+            $elapsedSeconds = [int]$gameState.actualSeconds
+        }
+
+        # Justerar starttiden så timern fortsätter där spelaren slutade.
+        $gameState.startTime = (Get-Date).AddSeconds(-1 * $elapsedSeconds)
+        $gameState.actualStartTime = $gameState.startTime
+
+        # Visar en kort sammanfattning av det sparade spelet.
+        Show-SavedGameSummary -GameState $gameState
+        Pause-Game
+
+        # Fortsätter quizet från rätt fråga.
+        Invoke-RansomwareQuiz -GameState $gameState -SavePath $SavePath -StartQuestionIndex ([int]$gameState.currentQuestionIndex) | Out-Null
+
+        # När quizet är klart visas slutresultatet.
+        Show-FinalResult -GameState $gameState -SavePath $SavePath
     }
-
-    # Alternativ 2 är rätt eftersom användaren inte klickar på en misstänkt länk.
-    if ($choice -eq 2) {
-        $feedback = "Rätt. Du litade inte på länken, utan valde en kontrollerad väg till tjänsten."
-        Write-Host $feedback -ForegroundColor Green
-        return New-ChallengeResult -Success $true -Points 10 -Feedback $feedback
+    catch {
+        # Visar fel om det sparade spelet inte kunde fortsätta.
+        Show-Error "Kunde inte fortsätta sparat spel: $($_.Exception.Message)"
+        Wait-ForReturnToMenu
     }
-
-    # Alla andra giltiga val är osäkra och ger därför inga poäng.
-    $feedback = "Farligt val. Phishing använder ofta stress och falska länkar för att stjäla inloggningar."
-    Write-Host $feedback -ForegroundColor Yellow
-    return New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
 }
 
-# Utmaning 2: Lösenord.
-# Spelaren ska välja det starkaste lösenordet av tre alternativ.
-function Invoke-PasswordChallenge {
-    Write-Host ""
-    Write-Host "Terminalutmaning: Valvlåset" -ForegroundColor Cyan
-    Write-Host "Valvet visar tre möjliga lösenord. Ett svagt val startar larmet."
-    Write-Host "Du behöver välja det lösenord som bäst står emot gissning och knäckning."
-    Write-Host ""
-    Write-Host "1. Password123"
-    Write-Host "2. sommar2026"
-    Write-Host "3. Vinter!Kamera-73-Skog"
-
-    $choice = Read-ChallengeChoice -Prompt "Välj lösenord"
-
-    if ($null -eq $choice) {
-        return New-ChallengeResult -Success $false -Points 0 -Feedback "Valvet kräver ett val mellan 1 och 3."
-    }
-
-    # Alternativ 3 är bäst eftersom det är längre och mer varierat.
-    if ($choice -eq 3) {
-        $feedback = "Rätt. Längd, variation och unikhet gör lösenfrasen mycket starkare."
-        Write-Host $feedback -ForegroundColor Green
-        return New-ChallengeResult -Success $true -Points 10 -Feedback $feedback
-    }
-
-    # Svaga lösenord är ofta korta, vanliga eller baserade på enkla mönster.
-    $feedback = "För svagt. Vanliga ord, namn, årtal och enkla mönster är lätta att gissa."
-    Write-Host $feedback -ForegroundColor Yellow
-    return New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
+function Start-RansomwareTimer {
+    # Returnerar nuvarande tid.
+    # Den används som starttid för timern.
+    return Get-Date
 }
 
-# Utmaning 3: MFA.
-# Spelaren får en oväntad MFA-notis och måste förstå att den inte ska godkännas.
-function Invoke-MfaChallenge {
-    Write-Host ""
-    Write-Host "Terminalutmaning: Andra låset" -ForegroundColor Cyan
-    Write-Host "Dörren skickar en MFA-notis. Problemet är att du inte försöker logga in."
-    Write-Host "Om du godkänner fel notis kan någon annan komma in."
-    Write-Host ""
-    Write-Host "1. Godkänn notisen för att bli av med den."
-    Write-Host "2. Neka notisen och rapportera eller byt lösenord enligt rutinen."
-    Write-Host "3. Stäng av MFA eftersom det stör."
+function Stop-RansomwareTimer {
+    param(
+        [Parameter(Mandatory)]
+        [object]$GameState
+    )
 
-    $choice = Read-ChallengeChoice -Prompt "Välj säker åtgärd"
+    # Sätter sluttiden till nu.
+    $GameState.endTime = Get-Date
 
-    if ($null -eq $choice) {
-        return New-ChallengeResult -Success $false -Points 0 -Feedback "MFA-låset kräver ett giltigt val."
-    }
+    # Räknar ut hur lång tid spelet tog.
+    $elapsed = New-TimeSpan -Start $GameState.startTime -End $GameState.endTime
 
-    # Rätt svar är att neka notisen och agera enligt säkerhetsrutinen.
-    if ($choice -eq 2) {
-        $feedback = "Rätt. En oväntad MFA-notis kan betyda att någon redan har lösenordet."
-        Write-Host $feedback -ForegroundColor Green
-        return New-ChallengeResult -Success $true -Points 10 -Feedback $feedback
-    }
+    # Sparar tiden i sekunder.
+    $GameState.actualSeconds = [int][Math]::Round($elapsed.TotalSeconds)
+    $GameState.elapsedSeconds = $GameState.actualSeconds
 
-    $feedback = "Fel val. Godkänn aldrig en MFA-notis som du inte själv har startat."
-    Write-Host $feedback -ForegroundColor Yellow
-    return New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
+    # Total tid är riktig tid plus tidstillägg från fel svar.
+    $GameState.totalSeconds = $GameState.actualSeconds + $GameState.penaltySeconds
 }
 
-# Utmaning 4: Okänd USB-enhet.
-function Invoke-UsbChallenge {
-    Write-Host ""
-    Write-Host "Terminalutmaning: Okänd enhet" -ForegroundColor Cyan
-    Write-Host "USB-minnet ligger precis bredvid labbdatorn. Skärmen visar: 'Anslut enhet för analys'."
-    Write-Host "Det kan vara oskyldigt, men det kan också vara en fälla."
-    Write-Host ""
-    Write-Host "1. Stoppa in det i datorn för att hitta ägaren."
-    Write-Host "2. Lämna det till lärare eller IT-ansvarig utan att koppla in det."
-    Write-Host "3. Kopiera filerna snabbt och radera sedan USB-minnet."
+function Get-CurrentRansomwareTime {
+    param(
+        [Parameter(Mandatory)]
+        [object]$GameState
+    )
 
-    $choice = Read-ChallengeChoice -Prompt "Välj säker åtgärd"
+    try {
+        # Om spelet inte har någon starttid räknas bara strafftiden.
+        if ($null -eq $GameState.startTime) {
+            return [PSCustomObject]@{
+                ActualSeconds  = 0
+                PenaltySeconds = [int]$GameState.penaltySeconds
+                TotalSeconds   = [int]$GameState.penaltySeconds
+                WrongAnswers   = [int]$GameState.wrongAnswers
+            }
+        }
 
-    if ($null -eq $choice) {
-        return New-ChallengeResult -Success $false -Points 0 -Feedback "USB-labbet accepterar bara val 1, 2 eller 3."
+        # Räknar ut hur lång tid som har gått sedan spelet startade.
+        $elapsed = New-TimeSpan -Start $GameState.startTime -End (Get-Date)
+        $actualSeconds = [int][Math]::Round($elapsed.TotalSeconds)
+        $penaltySeconds = [int]$GameState.penaltySeconds
+
+        # Returnerar aktuell tid, strafftid, totaltid och antal fel.
+        return [PSCustomObject]@{
+            ActualSeconds  = $actualSeconds
+            PenaltySeconds = $penaltySeconds
+            TotalSeconds   = $actualSeconds + $penaltySeconds
+            WrongAnswers   = [int]$GameState.wrongAnswers
+        }
     }
+    catch {
+        # Om något går fel visas ett felmeddelande och standardvärden returneras.
+        Show-Error "Kunde inte räkna ut aktuell tid: $($_.Exception.Message)"
 
-    # Rätt val är att inte ansluta USB-minnet till datorn.
-    if ($choice -eq 2) {
-        $feedback = "Rätt. Okända USB-enheter ska inte kopplas in i en vanlig dator."
-        Write-Host $feedback -ForegroundColor Green
-        return New-ChallengeResult -Success $true -Points 10 -Feedback $feedback
+        return [PSCustomObject]@{
+            ActualSeconds  = 0
+            PenaltySeconds = [int]$GameState.penaltySeconds
+            TotalSeconds   = [int]$GameState.penaltySeconds
+            WrongAnswers   = [int]$GameState.wrongAnswers
+        }
     }
-
-    $feedback = "Osäkert. En okänd USB-enhet kan köra skadlig kod eller lura användaren."
-    Write-Host $feedback -ForegroundColor Yellow
-    return New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
 }
 
-# Utmaning 5: Incidenthantering.
-# Spelaren får ett scenario där ett konto kan vara kapat och ska välja första åtgärd.
-function Invoke-IncidentChallenge {
-    Write-Host ""
-    Write-Host "Terminalutmaning: Larmcentralen" -ForegroundColor Cyan
-    Write-Host "Skärmarna visar: 'Möjlig kapning av konto'. Filer saknas och konstiga meddelanden skickas."
-    Write-Host "Du behöver välja första åtgärden innan skadan sprider sig."
-    Write-Host ""
-    Write-Host "1. Rapportera snabbt till lärare eller IT och följ skolans rutin."
-    Write-Host "2. Vänta några dagar för att se om problemet försvinner."
-    Write-Host "3. Lägg ut användarnamnet och problemet offentligt i en chatt."
+function Add-TimePenalty {
+    param(
+        [Parameter(Mandatory)]
+        [object]$GameState,
 
-    $choice = Read-ChallengeChoice -Prompt "Välj första åtgärd"
+        [int]$Seconds = 10
+    )
 
-    if ($null -eq $choice) {
-        return New-ChallengeResult -Success $false -Points 0 -Feedback "Incidentcentralen behöver ett giltigt val."
-    }
+    # Ökar antal fel med 1.
+    $GameState.wrongAnswers++
 
-    # Rätt svar är att rapportera incidenten snabbt till ansvarig person.
-    if ($choice -eq 1) {
-        $feedback = "Rätt. Snabb rapportering hjälper ansvariga att begränsa skadan och säkra bevis."
-        Write-Host $feedback -ForegroundColor Green
-        return New-ChallengeResult -Success $true -Points 10 -Feedback $feedback
-    }
-
-    $feedback = "Inte bra. Incidenter ska rapporteras snabbt och inte delas offentligt med känslig information."
-    Write-Host $feedback -ForegroundColor Yellow
-    return New-ChallengeResult -Success $false -Points 0 -Feedback $feedback
+    # Lägger till straffsekunder på spelarens tid.
+    $GameState.penaltySeconds += $Seconds
 }
 
-# Exporterar bara de funktioner som andra filer i projektet behöver kunna anropa.
-# Hjälpfunktionerna New-ChallengeResult och Read-ChallengeChoice används internt i modulen
-# och behöver därför inte exporteras.
-Export-ModuleMember -Function Invoke-PhishingChallenge, Invoke-PasswordChallenge, Invoke-MfaChallenge, Invoke-UsbChallenge, Invoke-IncidentChallenge
+function Show-FinalResult {
+    param(
+        [Parameter(Mandatory)]
+        [object]$GameState,
+
+        [Parameter(Mandatory)]
+        [string]$SavePath
+    )
+
+    try {
+        # Stoppar timern och räknar ut sluttiden.
+        Stop-RansomwareTimer -GameState $GameState
+
+        # Uppdaterar spelstatusen så spelet markeras som klart.
+        $GameState.currentQuestionIndex = [int]$GameState.completedQuestions
+        $GameState.isCompleted = $true
+
+        # Sparar färdigt spel.
+        Save-Game -Path $SavePath -SaveData $GameState
+
+        # Sparar resultatet till scoreboarden.
+        Save-ScoreboardResult -GameState $GameState | Out-Null
+
+        # Visar avslutningsmeddelanden.
+        Show-HackerVictoryMessage -PlayerName $GameState.playerName
+        Show-RansomwareSuccessEnding -GameState $GameState
+
+        # Väntar tills spelaren vill tillbaka till menyn.
+        Wait-ForReturnToMenu
+    }
+    catch {
+        # Om resultatet inte kunde sparas visas ett fel.
+        Show-Error "Spelet är klart, men resultatet kunde inte sparas: $($_.Exception.Message)"
+        Wait-ForReturnToMenu
+    }
+}
+
+function Show-SavedGameSummary {
+    param(
+        [Parameter(Mandatory)]
+        [object]$GameState
+    )
+
+    # Hämtar aktuell speltid.
+    $currentTime = Get-CurrentRansomwareTime -GameState $GameState
+
+    # Räknar ut vilken fråga/rum spelaren är på.
+    $nextQuestion = [int]$GameState.currentQuestionIndex + 1
+
+    # Visar information om det sparade spelet.
+    Show-Title
+    Write-Host "Sparat spel hittades." -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Spelare: $($GameState.playerName)" -ForegroundColor White
+    Write-Host "Aktuell fråga/rum: $nextQuestion" -ForegroundColor Cyan
+    Write-Host "Tid just nu: $(Format-ClockTime -Seconds $currentTime.TotalSeconds)" -ForegroundColor Cyan
+    Write-Host "Fel: $($currentTime.WrongAnswers)" -ForegroundColor Yellow
+    Write-Host "Tidstillägg: $($currentTime.PenaltySeconds) sekunder" -ForegroundColor Yellow
+    Write-Host ""
+}
+
+# Bestämmer vilka funktioner som ska kunna användas utanför denna modul.
+Export-ModuleMember -Function Start-SecurityEscapeRoom, Start-RansomwareEscapeRoom, Show-ScoreboardMenu, Start-NewGame, Start-SavedGame, Start-RansomwareTimer, Stop-RansomwareTimer, Get-CurrentRansomwareTime, Add-TimePenalty, Show-FinalResult
