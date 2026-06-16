@@ -100,8 +100,35 @@ Projektet stödjer organisationens ITSM-processer genom att koppla samman prakti
 <a id="installation"></a>
 ## Installation och Spela
 
-Spelet kräver ingen installation utöver att ladda ner filerna. 
+Spelet är helt portabelt och kräver ingen traditionell installation. Allt som behövs är att ladda ner projektfilerna och starta spelet direkt från din terminal.
 
 ### Förutsättningar
-* Windows OS
-* PowerShell
+* **Operativsystem:** Windows 10 eller Windows 11.
+* **Miljö:** PowerShell 5.1 eller senare (inbyggt i Windows standardmiljö).
+
+### Kom igång på 3 enkla steg
+
+1. **Ladda ner filerna**
+   Klicka på den gröna knappen **Code** högst upp på denna GitHub-sida och välj **Download ZIP** (och packa upp filen), alternativt klona projektet direkt via Git:
+   ```powershell
+   git clone https://github.com/andreasdahlstrom-Student/produktmetodik-scripting-uppgift2
+Öppna PowerShell och navigera till mappen
+Starta PowerShell och använda kommandot cd för att ställa dig i den mapp där du sparade spelets filer:
+
+PowerShell
+cd "C:\Sökväg\Till\Mappen\CLI-Security-Escape-Room"
+Starta spelet
+Kör spelets huvudskript för att kicka igång ransomware-simuleringen:
+
+PowerShell
+.\Start-Game.ps1
+(Om skriptfilen i ert projekt heter något annat, t.ex. main.ps1, byt ut namnet ovan till det korrekta).
+
+⚠️ Felsökning: Om skriptet blockeras av Windows
+Eftersom Windows har inbyggda säkerhetsspärrar mot att köra externa skript som laddats ner från internet, kan du mötas av ett rött felmeddelande när du försöker starta.
+
+För att lösa detta och tillåta att spelet körs i just det fönstret, klistra in följande kommando i PowerShell och tryck på Enter:
+
+PowerShell
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+Detta kommando ändrar endast säkerhetspolicyn tillfälligt för ditt öppna terminalfönster. Så fort du stänger fönstret återställs datorns permanenta systemsäkerhet till det normala.
