@@ -108,27 +108,36 @@ Spelet är helt portabelt och kräver ingen traditionell installation. Allt som 
 
 ### Kom igång på 3 enkla steg
 
-1. **Ladda ner filerna**
-   Klicka på den gröna knappen **Code** högst upp på denna GitHub-sida och välj **Download ZIP** (och packa upp filen), alternativt klona projektet direkt via Git:
-   ```powershell
-   git clone https://github.com/andreasdahlstrom-Student/produktmetodik-scripting-uppgift2
-Öppna PowerShell och navigera till mappen
-Starta PowerShell och använda kommandot cd för att ställa dig i den mapp där du sparade spelets filer:
+**Steg 1: Ladda ner filerna**
+Klicka på den gröna knappen **Code** högst upp på denna GitHub-sida och välj **Download ZIP** (och packa upp filen), alternativt klona projektet direkt via Git:
 
-PowerShell
+Powershell:
+
+git clone andreasdahlstrom-Student/produktmetodik-scripting-uppgift2
+
+
+**Steg 2: Öppna PowerShell och navigera till mappen**
+Starta PowerShell och använd kommandot cd för att ställa dig i den mapp där du sparade spelets filer:
+
+Powershell:
+
 cd "C:\Sökväg\Till\Mappen\CLI-Security-Escape-Room"
-Starta spelet
+
+
+**Steg 3: Starta spelet**
 Kör spelets huvudskript för att kicka igång ransomware-simuleringen:
 
-PowerShell
-.\Start-Game.ps1
-(Om skriptfilen i ert projekt heter något annat, t.ex. main.ps1, byt ut namnet ovan till det korrekta).
+Powershell:
 
-⚠️ Felsökning: Om skriptet blockeras av Windows
+.\Start-Game.ps1
+
+⚠️ **Felsökning:** Om skriptet blockeras av Windows
 Eftersom Windows har inbyggda säkerhetsspärrar mot att köra externa skript som laddats ner från internet, kan du mötas av ett rött felmeddelande när du försöker starta.
 
 För att lösa detta och tillåta att spelet körs i just det fönstret, klistra in följande kommando i PowerShell och tryck på Enter:
 
-PowerShell
+Powershell: 
+
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+
 Detta kommando ändrar endast säkerhetspolicyn tillfälligt för ditt öppna terminalfönster. Så fort du stänger fönstret återställs datorns permanenta systemsäkerhet till det normala.
