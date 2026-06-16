@@ -2,9 +2,10 @@ ADKAR – Förändringsledning för säkerhetsutbildning via CLI
 
 Awareness (Medvetenhet)
 Spelet inleds med ett scenario där användaren utsätts för en ransomware-attack och riskerar att förlora sina filer. Detta skapar förståelse för varför IT-säkerhet är viktigt och vilka konsekvenser bristande säkerhetsmedvetenhet kan få.
+Vi vill skapa awareness genom att spela.
 
 Desire (Vilja)
-Genom att använda ett Escape Room-upplägg med tidtagning, poäng och utmaningar blir utbildningen mer engagerande än traditionella genomgångar. Detta ökar motivationen att delta och lära sig om säkerhetsrisker.
+Genom att använda ett Escape Room-upplägg med tidtagning, poäng och utmaningar blir utbildningen mer engagerande än traditionella genomgångar. Detta ökar motivationen att delta och lära sig om säkerhetsrisker. Att spela spel kan det vara lättare att förstå.
 
 Knowledge (Kunskap)
 Under spelet får användaren svara på frågor och ta ställning i realistiska säkerhetsscenarier kopplade till ransomware, phishing, säkerhetskopiering och incidenthantering. Varje svar följs av förklaringar som lär ut rätt arbetssätt.
