@@ -24,7 +24,7 @@
 > **VARNING: Företaget har blivit hackat!** 
 > *En ransomware-attack har krypterat vår mest känsliga data. För att låsa upp filerna och undvika att betala en enorm lösensumma måste du överlista hackaren. Genom att lösa 5 säkerhetsrelaterade utmaningar direkt i hackarens terminal kan vi återta kontrollen.*
 
-**Syftet** med projektet är att ersetätta passiv och "tråkig" IT-säkerhetsutbildning med en spännande, verklighetsförankrad utmaning. Genom spelet tränar medarbetarna på riktiga säkerhetsrisker på ett sätt som faktiskt skapar engagemang.
+**Syftet** med projektet är att ersätta passiv och "tråkig" IT-säkerhetsutbildning med en spännande, verklighetsförankrad utmaning. Genom spelet tränar medarbetarna på riktiga säkerhetsrisker på ett sätt som faktiskt skapar engagemang.
 
 ---
 
@@ -83,10 +83,17 @@ För anställda som tvekar (ofta p.g.a. rädsla för terminalmiljön) erbjuder v
 <a id="itil"></a>
 ## ITIL Continual Improvement
 
-Projektet stödjer organisationens ITSM-processer:
+Projektet stödjer organisationens ITSM-processer genom att koppla samman praktisk utbildning med proaktiv supportverksamhet:
 
-* **Service Desk Avlastning:** Ökad förmåga (*Ability*) hos användarna resulterar i färre handhavandefel och klickade phishinglänkar. Detta frigör tid för Service Desk.
-* **Continual Improvement:** Insamling av data (via JSON) visar var användare svarar fel eller får mest tidsstraff. Faller många på en specifik fråga vet IT-avdelningen exakt vad nästa utbildningsinsats bör fokusera på.
+* **Service Desk Avlastning:** Genom att höja användarnas praktiska förmåga (*Ability*) att identifiera cyberhot, minskar vi antalet incidenter orsakade av den mänskliga faktorn. När medarbetare själva kan identifiera och undvika phishinglänkar, skadliga bilagor och social engineering-försök, minskar trycket på First-Line Support avsevärt. Detta leder till:
+    * **Färre akuta säkerhetsincidenter:** Färre infekterade datorer innebär mindre tidskrävande skadebegränsning och ominspektioner av klienter.
+    * **Kortare svarstider:** När inflödet av enkla, användarrelaterade fel minskar, kortas köerna till Service Desk för andra kritiska ärenden.
+    * **Strategiskt resursskapande:** Supporttekniker avlastas från reaktiva "brandkårsutryckningar" och kan istället lägga tid på proaktivt arbete, kunskapsartiklar och Problem Management.
+
+* **Continual Improvement (CSI):** Spelets inbyggda datainsamling (via JSON) skapar en direkt feedback-loop till IT-avdelningen och Service Desk. Genom att analysera anonymiserad statistik över *var* användarna svarar fel eller drabbas av mest tidsstraff, kan organisationen bedriva ett helt datadrivet förbättringsarbete. Detta samverkar med Service Desk på följande sätt:
+    * **Identifiering av dolda kunskapsluckor:** Om datan visar att en stor majoritet av spelarna får tidsstraff på exempelvis utmaningen om lösenordssäkerhet, vet IT-avdelningen exakt vad nästa riktade utbildningsinsats eller informationskampanj måste fokusera på.
+    * **Proaktiv Knowledge Management:** Istället för att Service Desk ska vänta på att felaktiga beteenden leder till riktiga incidenter, kan de använda spelets data för att proaktivt uppdatera sina självbetjäningsportaler och skapa relevanta guider innan problemen uppstår.
+    * **Mätbar beteendeförändring:** Genom att köra spelet i omgångar kan vi jämföra JSON-datan över tid. Om tidsstraffen minskar och slutresultaten förbättras har vi ett mätbart, konkret kvitto på att säkerhetsmedvetenheten ökar, vilket i sin tur bekräftar den långsiktiga avlastningen för Service Desk.
 
 ---
 
